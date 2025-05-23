@@ -17,12 +17,3 @@ instance Functor (Parser i) where
         Right (x, rest) -> Right (f x, rest)
 
 
-
-asdf = "sd{-fkl -- j dlkjsldkfjlsdk jslf" <> "asdf"
-
-
-blabla = 4949*4
-            where
-
-x = 5
-
