@@ -25,10 +25,12 @@ source-repository head
 
 library
   exposed-modules:
+      Error
       ExprDef
       Lexer
       Lexer.Layout
-      Lib
+      Module
+      Parser
       ParserCombs
   other-modules:
       Paths_haskell_phs
