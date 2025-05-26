@@ -13,10 +13,35 @@ data Token
     = TSemicolon
     | TBracketOpen
     | TBracketClose
-    | TModule
     | TNewLine
     | TWhiteSpace
-    deriving (Eq)
+    | TVarid String
+    | TConid String
+    | TCase
+    | TClass
+    | TData
+    | TDefault
+    | TDeriving
+    | TDo
+    | TElse
+    | TIf
+    | TImport
+    | TIn
+    | TInfix
+    | TInfixl
+    | TInfixr
+    | TInstance
+    | TLet
+    | TModule
+    | TNewtype
+    | TOf
+    | TThen
+    | TType
+    | TWhere
+    | TUnderscore
+    | TCommentOpen
+    | TCommentClose
+    deriving (Eq, Show) --TODO Show instatnie zelf
 
 data Pos = Pos {
     col :: Int,
@@ -27,27 +52,7 @@ data Pos = Pos {
 data Module = Module {
     name :: String,
     defs :: [Def]
-}
+} deriving (Show) -- TODO show instantie
 
-data Def
-
-
-
-{-
-dingen in rest gebruikt:
-qvarid = [modid . ] varid
-qconid = [modid . ] conid
-tyvar                       = varid
-qtycon = [modid . ] tycon   = conid
-qtycls = [modid . ] tycls   = conid
-modid                       = conid
-
-lexeme basisding
-qvarsym = [modid . ] varsym
-qconsym = [modid . ] consym
-literal
-special
-reservedop
-reserveid
-
--}
+data Def = Def 
+    deriving (Show) --TODO Show instantie

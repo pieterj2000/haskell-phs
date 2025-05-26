@@ -11,8 +11,10 @@ main = do
         [] -> return ()
         (inputfile:_)   -> 
             do  input <- readFile inputfile
-                let ast = parseFile input
-                    out = show ast
+                let ast = parseFile inputfile input
+                    out = case ast of
+                        Left e  -> show e
+                        Right x -> show x
                 putStrLn out
 
 
