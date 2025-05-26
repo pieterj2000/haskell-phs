@@ -14,15 +14,19 @@ module ParserCombs (
 ) where
 
 import ExprDef (SToken, Pos (..), Token (..))
-import Error (Error (..), ParseError)
+import Error (Error (..), ParseError (..))
 import Control.Applicative (Alternative)
 import GHC.Base (Alternative(..))
 import Prelude hiding (any)
 
--- TOOD willen we een [Error] or misschien difflist?
-newtype Parser i a = Parser { parse :: [(i, Pos)] -> Either [String -> Error] (a, [(i, Pos)]) }
+-- TODO willen we een [Error] (or misschien difflist in dat geval)?
+-- (Last managed position, input) -> Either (filename -> error) ((outputvalue, in position), (new last managed position, rest input))
+newtype Parser i a = Parser { runParser :: (Pos, [(i, Pos)]) -> Either (String -> Error) ((a, Pos), (Pos, [(i, Pos)])) }
 
-parseResult :: Parser i a -> [(i, Pos)] -> Either [String -> Error] a
+parse :: Parser i a -> [(i, Pos)] -> Either (String -> Error) ((a, Pos), (Pos, [(i, Pos)]))
+parse p input = runParser p (Pos 0 0, input)
+
+parseResult :: Parser i a -> [(i, Pos)] -> Either (String -> Error) (a, Pos)
 parseResult p = (fst <$>) . parse p
 
 instance Functor (Parser i) where
@@ -30,52 +34,50 @@ instance Functor (Parser i) where
     fmap f (Parser p) = Parser $ \input ->
         case p input of
             Left e -> Left e
-            Right (x, rest) -> Right (f x, rest)
+            Right ((x, pos), rest) -> Right ((f x, pos), rest)
 
 instance Applicative (Parser i) where
     pure :: a -> Parser i a
-    pure x = Parser $ \input -> Right (x, input)
+    pure x = Parser $ \(rp, input) -> Right ((x, rp), (rp,input))
     (<*>) :: Parser i (a -> b) -> Parser i a -> Parser i b
     af <*> ax = Parser $ \input ->
-            case parse af input of
+            case runParser af input of
               Left e          -> Left e
-              Right (f, rest) ->
-                case parse ax rest of
+              Right ((f,pos), rest) ->
+                case runParser ax rest of
                   Left e            -> Left e
-                  Right (x, rest')  -> Right (f x, rest')
+                  Right ((x, _), rest')  -> Right ((f x, pos), rest')
 
 instance Alternative (Parser i) where
     empty :: Parser i a
-    empty = Parser $ \input -> case input of
-                [] -> Left [ParseError $ ParseEmpty (Pos (-1) (-1))] --TODO dit is eigenlijk Empty error op EOF, dus dat is weer iets extra, 
+    empty = Parser $ \(rp, input) -> case input of
+                [] -> Left $ ParseError ParseEmpty rp --TODO dit is eigenlijk Empty error op EOF, dus dat is weer iets extra, 
                                                                 --weet nog steeds niet wanneer deze error precies zou moeten komen,
                                                                 -- als het ooit nuttig is het beter om hier een losse ParseEmptyEOF te maken denk ik
-                (_,pos):xs  -> Left [ParseError $ ParseEmpty pos]
+                _  -> Left $ ParseError ParseEmpty rp
     (<|>) :: Parser i a -> Parser i a -> Parser i a
-    l <|> r = Parser $ \input -> case parse l input of
+    l <|> r = Parser $ \input -> case runParser l input of
                 Right x -> Right x
-                Left e1  -> case parse r input of
-                    Right x -> Right x
-                    Left e2 -> Left $ e1 <> e2
+                Left e1  -> runParser r input
 
 
 -- | expects predicate function on tokens and String describing what it expects, for error messages
 satisfy :: Show i => (i -> Bool) -> String -> Parser i i
-satisfy p expects = Parser $ \input ->
+satisfy p expects = Parser $ \(rp, input) ->
         case input of
-            [] -> Left [ParseUnexpectedEOF expects]
+            [] -> Left $ ParseError (ParseUnexpectedEOF expects) rp
             ((c,pos):xs) -> if p c
-                then Right (c, xs)
-                else Left [ParseUnexpected (show c) expects pos]
+                then Right ((c,pos), (pos, xs))
+                else Left $ ParseError (ParseUnexpected (show c) expects) pos
 
 -- expects function on token and String describing what it expects, for error messages
-satisfyMap :: (i -> Either (Pos -> String -> Error) a) -> String -> Parser i a
-satisfyMap f expects = Parser $ \input ->
+satisfyMap :: (i -> Either ParseError a) -> String -> Parser i a
+satisfyMap f expects = Parser $ \(rp, input) ->
         case input of
-            [] -> Left [ParseUnexpectedEOF expects]
+            [] -> Left $ ParseError (ParseUnexpectedEOF expects) rp
             ((c,pos):xs) -> case f c of
-                Right y -> Right (y, xs)
-                Left e -> Left [e pos]
+                Right y -> Right ((y, pos), (pos, xs))
+                Left e -> Left $ ParseError e pos
 
 
 char :: (Show i, Eq i) => i -> Parser i i
@@ -85,18 +87,26 @@ string :: (Show i, Eq i) => [i] -> Parser i [i]
 string = traverse char
 
 any :: Parser i i
-any = Parser $ \input -> case input of
-        []          -> Left [ParseUnexpectedEOF "any symbol"]
-        (c,_):xs    -> Right (c, xs)
+any = Parser $ \(rp, input) -> case input of
+        []          -> Left $ ParseError (ParseUnexpectedEOF "any symbol") rp
+        (c,pos):xs    -> Right ((c,pos), (pos, xs))
 
 between :: Parser i a -> Parser i b -> Parser i c -> Parser i c
 between l r p = l *> p <* r
 
-overrideError :: Parser i a -> [Pos -> String -> ParseError] -> Parser i a
-overrideError p es = Parser $ \input -> 
-    case parse p input of
-        Left ((ParseError p s _):_) -> Left $ [ParseError p s es] -- Als empty list is dan is dit partial, maar zou nooit emptylist moeten kunnen hebben, misschien in NonEmptyList datatype veradneren?
+overrideError :: Parser i a -> ParseError -> Parser i a
+overrideError p enew = Parser $ \(rp, input) ->
+    case runParser p (rp, input) of
+        Left e ->   let (ParseError _ pos _) = e ""
+                    in Left $ ParseError enew pos  --Todo is niet type safe in dat het ook een andere error dan parseerror zou kunnen zijn, maar dat zou
+                                                                -- niet moeten kunnen voorkomen op dit punt
         Right x -> Right x
+
+
+some' :: Parser i a -> Parser i [(a, Pos)]
+some' 
+
+many' :: Parser i a -> Parser i [(a, Pos)]
 
 --------------------------------------------------------------------------------------------------
 -- SPECIALIZED FOR TOKENS

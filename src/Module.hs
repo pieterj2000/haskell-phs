@@ -18,7 +18,7 @@ mapLeft _ (Right x) = Right x
 
 -- Filename, contents
 parseModule :: String -> String -> Either [Error] Module
-parseModule filename = mapLeft (map ($ filename)) . P.parseResult moduleP . tokenize
+parseModule filename = mapLeft ($ filename) . P.parseResult moduleP . tokenize
 -- TODO checken dat hele file geparsed is. Dus of niet parseResult gebruiken maar parse, en dan kijken dat rest==[], 
 -- of char EOF aan moduleP toevoegen oid, is denk ik makkelijker
 

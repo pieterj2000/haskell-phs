@@ -1,7 +1,7 @@
 {-# LANGUAGE InstanceSigs #-}
 module Error (
     Error(..),
-    ParseError
+    ParseError(..)
 ) where
 
 import ExprDef (Pos (..))
@@ -11,19 +11,19 @@ data Error
     = ParseError ParseError Pos String -- pos string error 
 
 data ParseError
-    = ParseModuleFileName String String String -- module name, expected module name, filename
-    | ParseUnexpectedEOF String String -- expected token, filename
-    | ParseUnexpected String String Pos String -- got token, expected token, position, filename
-    | ParseEmpty Pos String -- pos, filename
-    | ParseUnclosedNComment Pos String -- pos, filename
+    = ParseModuleFileName String String
+    | ParseUnexpectedEOF String 
+    | ParseUnexpected String String 
+    | ParseEmpty 
+    | ParseUnclosedNComment
 
-instance Show ParseError where
-    show :: ParseError -> String
-    show (ParseModuleFileName mname expected file)  = parseError file <> "expected module " <> mname <> " to be named " <> expected
-    show (ParseUnexpectedEOF expected file)         = parseError file <> "unexpected End-Of-File, expected " <> expected
-    show (ParseUnexpected got expected pos file)    = parseError' pos file <> "unexpected input " <> got <> ", expected " <> expected
-    show (ParseEmpty pos file)                      = parseError' pos file <> "empty (alternative instance of) parser. TODO fix better error"
-    show (ParseUnclosedNComment pos file)           = parseError' pos file <> "unclosed {-"
+instance Show Error where
+    show :: Error -> String
+    show (ParseError (ParseModuleFileName mname expected) pos file) = parseError file <> "expected module " <> mname <> " to be named " <> expected
+    show (ParseError (ParseUnexpectedEOF expected) pos file)        = parseError file <> "unexpected End-Of-File, expected " <> expected
+    show (ParseError (ParseUnexpected got expected) pos file)       = parseError' pos file <> "unexpected input " <> got <> ", expected " <> expected
+    show (ParseError ParseEmpty pos file)                           = parseError' pos file <> "empty (alternative instance of) parser. TODO fix better error"
+    show (ParseError ParseUnclosedNComment pos file)                = parseError' pos file <> "unclosed {-"
 
 parseError :: String -> String 
 parseError file = "Parse error " <> file <> ": "

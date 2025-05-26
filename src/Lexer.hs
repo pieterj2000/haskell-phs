@@ -8,11 +8,12 @@ import qualified ParserCombs as P
 import Data.Char (isAlphaNum, isUpper, isLower, isDigit)
 import Control.Applicative (many, Alternative ((<|>), some), optional)
 import Data.Functor (($>))
-import Error (Error(ParseUnexpected))
+import Error (Error, ParseError (..))
 
--- TODO doen!
-tokenize :: String -> [SToken]
-tokenize = map (\a -> (a, Pos 0 0)) . map (mapReserved . TVarid) . words
+-- TODO Pos goed doen
+--tokenize :: String -> [SToken]
+tokenize x = (P.parseResult programP $ map (\a -> (a, Pos 0 0)) x)
+
 
 
 programP :: P.Parser Char [Token]
@@ -38,9 +39,11 @@ commentP = (dashes *> optional (P.satisfy (not . isSymbol) "not a symbol" *> man
     where dashes = P.string "--" *> many (P.char '-')
 
 anyP :: P.Parser Char Char
-anyP = P.overrideError (graphic <|> space <|> tab) $ [ParseUnexpected]
+anyP = P.overrideError (graphic <|> P.char ' ' <|> P.char '\t') $ ParseUnexpected "not any" "any" -- dit is geen goede error maar past ook niet echt erin...
     where
-        graphic = smallP <|> largeP <|> P.satisfy isSymbol "symbol" <|> digitP <|> P.satisfy isSpecial <|> P.char ':' <|> P.char
+        graphic = smallP <|> largeP <|> P.satisfy isSymbol "symbol" <|> digitP 
+                         <|> P.satisfy isSpecial "special symbol" <|> P.char ':' 
+                         <|> P.char '"' <|> P.char '\''
 
 
 
