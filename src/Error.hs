@@ -16,6 +16,7 @@ data ParseError
     | ParseUnexpected String String 
     | ParseEmpty 
     | ParseUnclosedNComment
+    | ParseExpectedEOF
 
 instance Show Error where
     show :: Error -> String

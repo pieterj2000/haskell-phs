@@ -5,12 +5,13 @@ module ParserCombs (
     char,
     parseResult,
     token,
-    modidP,
     satisfy,
     any,
     string,
     between,
-    overrideError
+    overrideError,
+    many',
+    eof
 ) where
 
 import ExprDef (SToken, Pos (..), Token (..))
@@ -26,8 +27,8 @@ newtype Parser i a = Parser { runParser :: (Pos, [(i, Pos)]) -> Either (String -
 parse :: Parser i a -> [(i, Pos)] -> Either (String -> Error) ((a, Pos), (Pos, [(i, Pos)]))
 parse p input = runParser p (Pos 0 0, input)
 
-parseResult :: Parser i a -> [(i, Pos)] -> Either (String -> Error) (a, Pos)
-parseResult p = (fst <$>) . parse p
+parseResult :: Parser i a -> [(i, Pos)] -> Either (String -> Error) a
+parseResult p = (fst <$> fst <$>) . parse p
 
 instance Functor (Parser i) where
     fmap :: (a -> b) -> Parser i a -> Parser i b
@@ -104,9 +105,22 @@ overrideError p enew = Parser $ \(rp, input) ->
 
 
 some' :: Parser i a -> Parser i [(a, Pos)]
-some' 
+some' p = (:) <$> withPos p <*> many' p
 
 many' :: Parser i a -> Parser i [(a, Pos)]
+many' p = some' p <|> pure []
+
+withPos :: Parser i a -> Parser i (a, Pos)
+withPos p = Parser $ \input -> case runParser p input of
+                                Left e -> Left e
+                                Right ((a,pos), rest) -> Right (((a,pos),pos),rest)
+
+
+eof :: Parser i ()
+eof = Parser $ \(rp,input) -> case input of
+                    [] -> Right (((),rp), (rp,input))
+                    _ -> Left $ ParseError ParseExpectedEOF rp
+
 
 --------------------------------------------------------------------------------------------------
 -- SPECIALIZED FOR TOKENS
@@ -115,13 +129,3 @@ type TParser a = Parser Token a
 
 token :: Token -> TParser Token
 token = char
-
-modidP :: TParser String
-modidP = conidP
-
-conidP :: TParser String
-conidP =
-    let expected = "constructor identifier"
-        f (TConid s)    = Right s
-        f t             = Left $ ParseUnexpected (show t) expected
-    in satisfyMap f expected

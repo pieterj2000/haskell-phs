@@ -15,8 +15,9 @@ data Token
     | TBracketClose
     | TNewLine
     | TWhiteSpace
-    | TVarid String
-    | TConid String
+    | TVarid { getVarid :: String }
+    | TConid { getConid :: String }
+    | TModid { getModid :: String }
     | TCase
     | TClass
     | TData
@@ -39,8 +40,6 @@ data Token
     | TType
     | TWhere
     | TUnderscore
-    | TCommentOpen
-    | TCommentClose
     deriving (Eq, Show) --TODO Show instatnie zelf
 
 data Pos = Pos {
