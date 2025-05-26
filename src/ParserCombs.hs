@@ -11,10 +11,13 @@ module ParserCombs (
     between,
     overrideError,
     many',
-    eof
+    eof,
+    tokens,
+    tokent,
+    stoken
 ) where
 
-import ExprDef (SToken, Pos (..), Token (..))
+import ExprDef (SToken, PToken, Pos (..), Token (..))
 import Error (Error (..), ParseError (..))
 import Control.Applicative (Alternative)
 import GHC.Base (Alternative(..))
@@ -125,7 +128,16 @@ eof = Parser $ \(rp,input) -> case input of
 --------------------------------------------------------------------------------------------------
 -- SPECIALIZED FOR TOKENS
 
-type TParser a = Parser Token a
+type TParser a = Parser SToken a
 
-token :: Token -> TParser Token
-token = char
+tokent :: Token -> TParser Token
+tokent t = fst <$> token t
+
+tokens :: Token -> TParser String
+tokens t = snd <$> token t
+
+token :: Token -> TParser SToken
+token t = satisfy ((==t) . fst) $ show t
+
+stoken :: SToken -> TParser SToken
+stoken = char

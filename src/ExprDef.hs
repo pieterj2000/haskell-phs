@@ -1,13 +1,17 @@
+{-# LANGUAGE InstanceSigs #-}
 module ExprDef
 (
     Token(..),
     Pos(..),
     SToken,
-    Module(..)
+    Module(..),
+    PToken
 ) where
 
 
-type SToken = (Token, Pos)
+type PToken = (SToken, Pos)
+type SToken = (Token, String)
+
 
 data Token
     = TSemicolon
@@ -15,9 +19,10 @@ data Token
     | TBracketClose
     | TNewLine
     | TWhiteSpace
-    | TVarid { getVarid :: String }
-    | TConid { getConid :: String }
-    | TModid { getModid :: String }
+    | TVarid
+    | TConid
+    | TModid
+    | TSpecial
     | TCase
     | TClass
     | TData
@@ -40,12 +45,17 @@ data Token
     | TType
     | TWhere
     | TUnderscore
+    | TTEST -- TODO weghalen
     deriving (Eq, Show) --TODO Show instatnie zelf
 
 data Pos = Pos {
     col :: Int,
     row :: Int
 } deriving (Eq)
+
+instance Show Pos where
+  show :: Pos -> String
+  show (Pos col row) = show col <> ":" <> show row
 
 
 data Module = Module {

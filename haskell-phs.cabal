@@ -75,6 +75,8 @@ executable phs
     -- .hs or .lhs file containing the Main module.
     main-is:          Main.hs
 
+    autogen-modules:
+
     -- Modules included in this executable, other than Main.
     other-modules:
         Parser
