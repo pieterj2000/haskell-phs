@@ -62,8 +62,9 @@ instance Show Pos where
 
 data Module = Module {
     name :: String,
-    defs :: [Def]
-} deriving (Show) -- TODO show instantie
+    defs :: [Def],
+    deps :: [(Module, [String])] --modules die nodig zijn
+} -- deriving (Show) -- TODO show instantie
 
 data Def = Def 
     deriving (Show) --TODO Show instantie

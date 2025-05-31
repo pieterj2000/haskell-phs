@@ -13,7 +13,7 @@ import qualified ParserCombs as P
 import Data.Char (isAlphaNum, isUpper, isLower, isDigit)
 import Control.Applicative (many, Alternative ((<|>), some), optional)
 import Data.Functor (($>))
-import Error (Error (..), ParseError (..))
+import Error ( ParseError (..), Error (ParseError))
 
 withpos :: String -> [(Char, Pos)]
 withpos = go (Pos { line = 1, col = 1 })
@@ -30,7 +30,7 @@ withpos = go (Pos { line = 1, col = 1 })
         go p@(Pos line col) (c:ss) = (c,p) : go (Pos line (col+1)) ss
         go p@(Pos line col) [] = []
 
--- TODO Pos goed doen
+
 --tokenize :: String -> Either (String -> Error) [SToken]
 tokenize x = P.parseResult programP $ withpos x
 
@@ -39,6 +39,7 @@ programP :: P.Parser Char [PToken]
 programP = let p = P.many' (ncommentP <|> whitespaceP <|> lexemeP <|> newlineP <|> ((\c -> (TTEST,[c])) <$> anyP )) -- TODO dit laatste vervangen met EOF
             in map (\(a,b) -> (mapReserved a,b)) <$> p
 
+-- TODO literate haskel
 ncommentP :: P.Parser Char (Token, String)
 ncommentP = (P.string "{-" *> ncommentfilterP) $> (TWhiteSpace, "")
 

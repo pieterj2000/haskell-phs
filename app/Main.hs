@@ -2,8 +2,9 @@ module Main (main) where
 
 import System.Environment (getArgs)
 
-import Parser 
+import Module 
 import Lexer (tokenize, withpos)
+import ExprDef (Module(..))
 
 -- TODO verplaatsen naar iets van utils?
 mapLeft :: (a -> b) -> Either a c -> Either b c
@@ -22,7 +23,7 @@ main = do
                     ast = parseFile (drop 4 inputfile) input --TODO die drop 4 is nodig om src/ of app/ eruit te halen, moet later goed als je folder aware bent zeg maar
                     out = case ast of
                         Left e  -> show e
-                        Right x -> show x
+                        Right x -> show $ name x
                 --print textpos
                 print tokens
                 putStrLn out

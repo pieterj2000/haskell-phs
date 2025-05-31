@@ -14,13 +14,14 @@ module ParserCombs (
     eof,
     tokens,
     tokent,
-    stoken
+    stoken,
+    withPos
 ) where
 
 import ExprDef (SToken, PToken, Pos (..), Token (..))
 import Error (Error (..), ParseError (..))
-import Control.Applicative (Alternative)
-import GHC.Base (Alternative(..))
+import Control.Applicative (Alternative (..))
+import Data.Traversable (traverse)
 import Prelude hiding (any)
 
 -- TODO willen we een [Error] (or misschien difflist in dat geval)?

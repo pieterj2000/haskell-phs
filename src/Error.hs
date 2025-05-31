@@ -17,6 +17,7 @@ data ParseError
     | ParseEmpty 
     | ParseUnclosedNComment
     | ParseExpectedEOF
+    | LayoutError String
 
 instance Show Error where
     show :: Error -> String
@@ -25,6 +26,7 @@ instance Show Error where
     show (ParseError (ParseUnexpected got expected) pos file)       = parseError' pos file <> "unexpected input " <> got <> ", expected " <> expected
     show (ParseError ParseEmpty pos file)                           = parseError' pos file <> "empty (alternative instance of) parser. TODO fix better error"
     show (ParseError ParseUnclosedNComment pos file)                = parseError' pos file <> "unclosed {-"
+    show (ParseError (LayoutError s) pos file)                      = parseError' pos file <> s
 
 parseError :: String -> String 
 parseError file = "Parse error " <> file <> ": "

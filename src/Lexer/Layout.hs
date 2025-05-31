@@ -1,9 +1,10 @@
 module Lexer.Layout
 (
-
+    handleLayout
 ) where
 
 import ExprDef (Token(..), Pos(..), SToken, PToken)
+import Error (Error (ParseError), ParseError (LayoutError))
 
 
 
@@ -55,40 +56,44 @@ addContexts = rule3 . rule2 . rule1 . map LToken
 
 data LToken = LToken PToken | Layout Pos | Line Pos
 
-handleLayout :: [LToken] -> [PToken]
-handleLayout tokens = hL tokens []
+handleLayout :: [PToken] -> Either (String -> Error) [PToken]
+handleLayout tokens = hL (addContexts tokens) []
 
 
 isKeyword :: Token -> Bool
 isKeyword = undefined
 
 
-hL :: [LToken] -> [Pos] -> [PToken]
+hL :: [LToken] -> [Pos] -> Either (String -> Error) [PToken]
 hL ((Line p@(Pos line col)) : ts) (m@(Pos _ mcol):ms)
-    | mcol == col   = ((TSemicolon,";"), p) : hL ts (m:ms)
-    | col < mcol    = ((TBracketClose,"}"), p) : hL (Line p : ts) ms
+    | mcol == col   = ( ((TSemicolon,";"), p) : ) <$> hL ts (m:ms)
+    | col < mcol    = ( ((TBracketClose,"}"), p) : ) <$> hL (Line p : ts) ms
     | col > mcol    = hL ts (m:ms)
 hL ((Line p) : ts) []
                     = hL ts []
 hL ((Layout p@(Pos line col)) : ts) []
-    | col == 0      = undefined --TODO errormessage. Dit zou sowiseso nooit moeten kunnen, dus dit is een error in het programma, niet van de inputfile
-    | col > 0       = ((TBracketOpen, "{"), p) : hL ts [Pos line col]
+    | col == 0      = error $ "Got token on column 0 (" <> show p <> "). This should not be able to happen" 
+    | col > 0       = ( ((TBracketOpen, "{"), p) : ) <$> hL ts [Pos line col]
 hL ((Layout p@(Pos line col)) : ts) (m@(Pos _ mcol):ms)
-    | col > mcol    = ((TBracketOpen, "{"), p) : hL ts ((Pos line col):m:ms)
-    | col <= mcol   = ((TBracketOpen, "{"), p) : ((TBracketClose,"}"), p) : hL (Line p : ts) (m:ms)
+    | col > mcol    = ( ((TBracketOpen, "{"), p) : ) <$> hL ts ((Pos line col):m:ms)
+    | col <= mcol   = (\v -> ((TBracketOpen, "{"), p) : ((TBracketClose,"}"), p) : v) <$> hL (Line p : ts) (m:ms)
 hL ((LToken ((TBracketClose,_),p)) : ts) ((Pos 0 0):ms)
-                = ((TBracketClose,"}"),p) : hL ts ms
+                = ( ((TBracketClose,"}"),p) : ) <$> hL ts ms
 hL ((LToken ((TBracketClose,_),p)) : ts) ms
-                = undefined -- TODO errormessage. Dit is wél een error in het inputfile. Namelijk: een expliciete } zonder expliciete {
+                = Left $ ParseError (LayoutError "Got an explicit } matching to an implicit {") p 
 hL ((LToken ((TBracketOpen,_),p)) : ts) ms
-                = ((TBracketOpen, "{"),p) : hL ts ((Pos 0 0):ms)
+                = ( ((TBracketOpen, "{"),p) : ) <$> hL ts ((Pos 0 0):ms)
 hL tokens@(LToken t@((tt,_),p) : ts) (m:ms)
-    | m /= (Pos 0 0) && undefined {-TODO: hier is de parse-error condition. Dit moeten we dus nog even verder uitwerken.... -} = ((TBracketClose,"}"),p) : hL tokens ms
-    | otherwise = t : hL ts (m:ms)
+    | m /= (Pos 0 0) && undefined {-TODO: hier is de parse-error condition. Dit moeten we dus nog even verder uitwerken.... -} = ( ((TBracketClose,"}"),p) : ) <$> hL tokens ms
+    | otherwise = (t :) <$> hL ts (m:ms)
 hL (LToken t :ts) ms
-                = t : hL ts ms
+                = (t :) <$> hL ts ms
 hL [] []
-                = []
+                = Right []
 hL [] (m:ms)
     | m /= (Pos 0 0)    = undefined -- TODO errormessage. Dit is wél een error in het inputfile. Namelijk: een expliciete } zonder expliciete {
-    | otherwise                 = ((TBracketClose,"}"), m) : hL [] ms
+    | otherwise                 = ( ((TBracketClose,"}"), m) : ) <$> hL [] ms
+
+hL ((Line (Pos _ _)):_) ((Pos _ _):_) = error ""
+hL ((Layout (Pos _ _)):_) [] = error  ""
+hL ((Layout (Pos _ _)):_) ((Pos _ _):_) = error "" 
