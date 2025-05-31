@@ -24,11 +24,11 @@ import GHC.Base (Alternative(..))
 import Prelude hiding (any)
 
 -- TODO willen we een [Error] (or misschien difflist in dat geval)?
--- (Last managed position, input) -> Either (filename -> error) ((outputvalue, in position), (new last managed position, rest input))
+-- (Last managed position, input) -> Either (filename -> error) ((outputvalue, in position), (next managed position, rest input))
 newtype Parser i a = Parser { runParser :: (Pos, [(i, Pos)]) -> Either (String -> Error) ((a, Pos), (Pos, [(i, Pos)])) }
 
 parse :: Parser i a -> [(i, Pos)] -> Either (String -> Error) ((a, Pos), (Pos, [(i, Pos)]))
-parse p input = runParser p (Pos 0 0, input)
+parse p input = runParser p (Pos 1 1, input)
 
 parseResult :: Parser i a -> [(i, Pos)] -> Either (String -> Error) a
 parseResult p = (fst <$> fst <$>) . parse p
@@ -42,7 +42,13 @@ instance Functor (Parser i) where
 
 instance Applicative (Parser i) where
     pure :: a -> Parser i a
-    pure x = Parser $ \(rp, input) -> Right ((x, rp), (rp,input))
+    pure x = Parser $ \(rp, input) -> case input of
+                            []          -> Right ((x,rp), (rp,input))
+                            (_,np):_    -> Right ((x,np), (rp,input)) -- When you do (pure [] <*>) for example with an optional qualified
+                                                                      -- then needs to take the pos of the next char, otherwise the token
+                                                                      -- gets the value of one pos before the token  
+                                                                      -- maybe this goes wrong somewhere if you do <*> pure 
+                                                                      -- we'll see it when it happens....
     (<*>) :: Parser i (a -> b) -> Parser i a -> Parser i b
     af <*> ax = Parser $ \input ->
             case runParser af input of

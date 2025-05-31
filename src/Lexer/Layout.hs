@@ -64,18 +64,18 @@ isKeyword = undefined
 
 
 hL :: [LToken] -> [Pos] -> [PToken]
-hL ((Line p@(Pos col row)) : ts) (m@(Pos mcol _):ms)
-    | mcol == (col+1)   = ((TSemicolon,";"), p) : hL ts (m:ms)
-    | (col+1) < mcol    = ((TBracketClose,"}"), p) : hL (Line p : ts) ms
-    | (col+1) > mcol    = hL ts (m:ms)
+hL ((Line p@(Pos line col)) : ts) (m@(Pos _ mcol):ms)
+    | mcol == col   = ((TSemicolon,";"), p) : hL ts (m:ms)
+    | col < mcol    = ((TBracketClose,"}"), p) : hL (Line p : ts) ms
+    | col > mcol    = hL ts (m:ms)
 hL ((Line p) : ts) []
                     = hL ts []
-hL ((Layout p@(Pos col row)) : ts) []
-    | (col+1) == 0      = undefined --TODO errormessage. Dit zou sowiseso nooit moeten kunnen, dus dit is een error in het programma, niet van de inputfile
-    | (col+1) > 0       = ((TBracketOpen, "{"), p) : hL ts [Pos (col+1) row]
-hL ((Layout p@(Pos col row)) : ts) (m@(Pos mcol _):ms)
-    | (col+1) > mcol    = ((TBracketOpen, "{"), p) : hL ts ((Pos (col+1) row):m:ms)
-    | (col+1) <= mcol   = ((TBracketOpen, "{"), p) : ((TBracketClose,"}"), p) : hL (Line p : ts) (m:ms)
+hL ((Layout p@(Pos line col)) : ts) []
+    | col == 0      = undefined --TODO errormessage. Dit zou sowiseso nooit moeten kunnen, dus dit is een error in het programma, niet van de inputfile
+    | col > 0       = ((TBracketOpen, "{"), p) : hL ts [Pos line col]
+hL ((Layout p@(Pos line col)) : ts) (m@(Pos _ mcol):ms)
+    | col > mcol    = ((TBracketOpen, "{"), p) : hL ts ((Pos line col):m:ms)
+    | col <= mcol   = ((TBracketOpen, "{"), p) : ((TBracketClose,"}"), p) : hL (Line p : ts) (m:ms)
 hL ((LToken ((TBracketClose,_),p)) : ts) ((Pos 0 0):ms)
                 = ((TBracketClose,"}"),p) : hL ts ms
 hL ((LToken ((TBracketClose,_),p)) : ts) ms

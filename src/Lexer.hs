@@ -1,8 +1,11 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Move brackets to avoid $" #-}
 module Lexer (
-    tokenize
-) where
+    tokenize,
+    withpos --todo deze eruit
+, qvarTP
+, conTP
+, varTP) where
 
 import ExprDef (SToken, Token (..), Pos (..), PToken)
 import qualified ParserCombs as P
@@ -12,12 +15,28 @@ import Control.Applicative (many, Alternative ((<|>), some), optional)
 import Data.Functor (($>))
 import Error (Error (..), ParseError (..))
 
+withpos :: String -> [(Char, Pos)]
+withpos = go (Pos { line = 1, col = 1 })
+    where
+        go p@(Pos line col) ('\r':'\n':ss) = ('\r',p) : ('\n',p) : go (Pos (line+1) 1) ss
+        go p@(Pos line col) ('\r':ss) = ('\r',p) : go (Pos (line+1) 1) ss
+        go p@(Pos line col) ('\n':ss) = ('\n',p) : go (Pos (line+1) 1) ss
+        go p@(Pos line col) ('\f':ss) = ('\f',p) : go (Pos (line+1) 1) ss
+        go p@(Pos line col) ('\t':ss) =
+            let r = col `rem` 8
+                extra = 8 - r
+                p' = Pos line (col + extra)
+            in ('\t',p') : go (Pos line (col+1+extra)) ss
+        go p@(Pos line col) (c:ss) = (c,p) : go (Pos line (col+1)) ss
+        go p@(Pos line col) [] = []
+
 -- TODO Pos goed doen
 --tokenize :: String -> Either (String -> Error) [SToken]
-tokenize x = P.parseResult programP $ map (\a -> (a, Pos 0 0)) x
+tokenize x = P.parseResult programP $ withpos x
 
+--TODO voor pragmas, als allereerste parser een pragma parser ertussen stoppen (dus between {-# en #-})
 programP :: P.Parser Char [PToken]
-programP = let p = P.many' (ncommentP <|> lexemeP <|> whitespaceP <|> newlineP <|> ((\c -> (TTEST,[c])) <$> anyP )) -- TODO dit laatste vervangen met EOF
+programP = let p = P.many' (ncommentP <|> whitespaceP <|> lexemeP <|> newlineP <|> ((\c -> (TTEST,[c])) <$> anyP )) -- TODO dit laatste vervangen met EOF
             in map (\(a,b) -> (mapReserved a,b)) <$> p
 
 ncommentP :: P.Parser Char (Token, String)
@@ -35,7 +54,7 @@ ncommentfilterP = P.Parser $ \(rp,input) ->
 
 -- TODO rest aan toevoegen!
 lexemeP :: P.Parser Char (Token, String)
-lexemeP = qvaridP <|> qconidP <|> specialP
+lexemeP = qvaridP <|> qconidP <|> qvarsymP <|> specialP
 
 specialP :: P.Parser Char (Token, String)
 specialP = (\s -> (TSpecial,[s])) <$> P.satisfy isSpecial "special symbol"
@@ -45,6 +64,9 @@ qvaridP = (\s -> (TVarid,s)) <$> ( (++) <$> (modidQP <|> pure [])  <*> (snd <$> 
 
 qconidP :: P.Parser Char (Token, String)
 qconidP = (\s -> (TConid,s)) <$> ( (++) <$> (modidQP <|> pure [])  <*> (snd <$> conidP))
+
+qvarsymP :: P.Parser Char (Token, String)
+qvarsymP = (\s1 (t,s2) -> (t,s1++s2)) <$> (modidQP <|> pure [])  <*> varsymP
 
 modidSP :: P.Parser Char [Char]
 modidSP =
@@ -74,7 +96,7 @@ commentP = (dashes *> optional (P.satisfy (not . isSymbol) "not a symbol" *> man
 anyP :: P.Parser Char Char
 anyP = P.overrideError (graphic <|> P.char ' ' <|> P.char '\t') $ ParseUnexpected "not any" "any" -- dit is geen goede error maar past ook niet echt erin...
     where
-        graphic = smallP <|> largeP <|> P.satisfy isSymbol "symbol" <|> digitP
+        graphic = smallP <|> largeP <|> symbolP <|> digitP
                          <|> P.satisfy isSpecial "special symbol" <|> P.char ':'
                          <|> P.char '"' <|> P.char '\''
 
@@ -113,9 +135,10 @@ isSymbol '^'    = True
 isSymbol '|'    = True
 isSymbol '-'    = True
 isSymbol '~'    = True
-isSymbol ':'    = True
 isSymbol _      = False
 
+symbolP :: P.Parser Char Char
+symbolP = P.satisfy isSymbol "symbol"
 
 conidP :: P.Parser Char (Token, String)
 conidP = (\v -> (TConid, v)) <$> (
@@ -130,6 +153,29 @@ varidP = (\v -> (TVarid, v)) <$> (
                     <$> smallP
                     <*> many (P.satisfy isAlphaNum "alphabetic character or digit" <|> P.char '\'')
                 )
+
+varsymP :: P.Parser Char (Token, String)
+varsymP = (\v -> if isReservedOp v then (TSpecialOp,v) else (TVarsym, v)) <$> (
+                (:)
+                    <$> symbolP
+                    <*> many (symbolP <|> P.char ':')
+                )
+
+isReservedOp :: String -> Bool
+isReservedOp ".."   = True
+isReservedOp ":"   = True
+isReservedOp "::"   = True
+isReservedOp "="   = True
+isReservedOp "\\"   = True
+isReservedOp "|"   = True
+isReservedOp "<-"   = True
+isReservedOp "->"   = True
+isReservedOp "@"   = True
+isReservedOp "~"   = True
+isReservedOp "=>"   = True
+isReservedOp _      = False
+
+
 
 smallP :: P.Parser Char Char
 smallP = P.satisfy (\c -> isLower c || c=='_') "lowercase letter or underscore"
@@ -168,3 +214,27 @@ mapReserved (TVarid, "type")     = (TType, "type")
 mapReserved (TVarid, "where")    = (TWhere, "where")
 mapReserved (TVarid, "_")        = (TUnderscore, "_")
 mapReserved x                    = x
+
+
+
+
+--------------------------------------------------------------
+---- ON TOKENS 
+qvarTP :: P.TParser SToken
+qvarTP = P.token TVarid <|> 
+        P.between (P.stoken (TSpecial, "(")) (P.stoken (TSpecial, ")")) 
+            (P.token TVarsym)
+
+conTP :: P.TParser SToken
+conTP = P.Parser $ \input -> case P.runParser (P.token TConid) input of
+                        Left x -> Left x
+                        Right r@(((t,s),pos), _) -> if '.' `elem` s 
+                                then Left (ParseError (ParseUnexpected s "non-qualified constructor") pos)
+                                else Right r
+
+varTP :: P.TParser SToken
+varTP = P.Parser $ \input -> case P.runParser (P.token TVarid) input of
+                        Left x -> Left x
+                        Right r@(((t,s),pos), _) -> if '.' `elem` s 
+                                then Left (ParseError (ParseUnexpected s "non-qualified variable") pos)
+                                else Right r

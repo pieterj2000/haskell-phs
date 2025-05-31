@@ -13,7 +13,7 @@ data Error
 data ParseError
     = ParseModuleFileName String String -- real module name, expected name
     | ParseUnexpectedEOF String 
-    | ParseUnexpected String String 
+    | ParseUnexpected String String -- got, expectged
     | ParseEmpty 
     | ParseUnclosedNComment
     | ParseExpectedEOF

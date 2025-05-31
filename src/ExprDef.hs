@@ -20,9 +20,11 @@ data Token
     | TNewLine
     | TWhiteSpace
     | TVarid
+    | TVarsym
     | TConid
     | TModid
     | TSpecial
+    | TSpecialOp
     | TCase
     | TClass
     | TData
@@ -49,13 +51,13 @@ data Token
     deriving (Eq, Show) --TODO Show instatnie zelf
 
 data Pos = Pos {
-    col :: Int,
-    row :: Int
+    line :: Int,
+    col :: Int
 } deriving (Eq)
 
 instance Show Pos where
   show :: Pos -> String
-  show (Pos col row) = show col <> ":" <> show row
+  show (Pos line col) = show line <> ":" <> show col
 
 
 data Module = Module {

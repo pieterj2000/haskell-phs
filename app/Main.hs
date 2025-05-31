@@ -3,7 +3,7 @@ module Main (main) where
 import System.Environment (getArgs)
 
 import Parser 
-import Lexer (tokenize)
+import Lexer (tokenize, withpos)
 
 -- TODO verplaatsen naar iets van utils?
 mapLeft :: (a -> b) -> Either a c -> Either b c
@@ -17,11 +17,13 @@ main = do
         [] -> return ()
         (inputfile:_)   -> 
             do  input <- readFile inputfile
-                let tokens = mapLeft ($ inputfile) $ tokenize input
-                    ast = parseFile inputfile input
+                let textpos = withpos input
+                    tokens = mapLeft ($ inputfile) $ tokenize input
+                    ast = parseFile (drop 4 inputfile) input --TODO die drop 4 is nodig om src/ of app/ eruit te halen, moet later goed als je folder aware bent zeg maar
                     out = case ast of
                         Left e  -> show e
                         Right x -> show x
+                --print textpos
                 print tokens
                 putStrLn out
 
