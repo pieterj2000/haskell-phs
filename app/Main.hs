@@ -5,6 +5,7 @@ import System.Environment (getArgs)
 import Module 
 import Lexer (tokenize, withpos)
 import ExprDef (Module(..))
+import LambdaCalc
 
 -- TODO verplaatsen naar iets van utils?
 mapLeft :: (a -> b) -> Either a c -> Either b c
@@ -18,15 +19,17 @@ main = do
         [] -> return ()
         (inputfile:_)   -> 
             do  input <- readFile inputfile
-                let textpos = withpos input
+                let --textpos = withpos input
                     tokens = mapLeft ($ inputfile) $ tokenize input
-                    ast = parseFile (drop 4 inputfile) input --TODO die drop 4 is nodig om src/ of app/ eruit te halen, moet later goed als je folder aware bent zeg maar
-                    out = case ast of
-                        Left e  -> show e
-                        Right x -> show $ name x
+                    --ast = parseFile (drop 4 inputfile) input --TODO die drop 4 is nodig om src/ of app/ eruit te halen, moet later goed als je folder aware bent zeg maar
+                    ast = parseFile inputfile input
                 --print textpos
                 print tokens
-                putStrLn out
-
+                print out
+    print test
+    print $ lambdaToDeBruin test
+    print $ apply (lambdaToDeBruin test) $ Bprim "a"
+    print $ evalDeBruin $ apply (lambdaToDeBruin test) $ Bprim "a"
+    --print $ apply (apply (lambdaToDeBruin test) $ Bprim "a") $ Bprim "b"
 
 

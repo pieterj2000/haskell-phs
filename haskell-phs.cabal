@@ -67,6 +67,7 @@ common warnings
         -Wmissing-home-modules
         -Wpartial-fields
         -Wredundant-constraints
+        ---Werror --voor CI
 
 executable phs
     -- Import common warning flags.
@@ -86,6 +87,7 @@ executable phs
         ExprDef
         Lexer
         ParserCombs
+        LambdaCalc
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

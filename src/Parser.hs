@@ -6,7 +6,9 @@ import Error (Error)
 import ExprDef (Module)
 
 
-data HExpr
-    = HExpr
+import qualified ParserCombs as P
 
 
+
+
+parseFile :: String -> String -> HExpr

@@ -1,6 +1,7 @@
 module Module (
-    parseModule
-, parseFile) where
+    parseModule,
+    --parseFile) 
+) where
 
 import Data.Functor (($>))
 
@@ -52,17 +53,17 @@ stripPostfix post string = reverse $ stripPrefix (reverse post) (reverse string)
 parseModule :: String -> String -> Either Error Module
 parseModule filename content =
         let tokens = tokenize content
-            tokens' = filter (\((t,_),_) -> t /= TWhiteSpace && t /= TNewLine ) <$> tokens
-            output = tokens' >>= P.parseResult moduleP
+            output = tokens >>= P.parseResult moduleP
             -- TODO nog door layout voeren
         in case output of
             Left e -> Left $ e filename
             Right x@(name, exports, imports, defs) ->
                 let supposedname = stripPostfix ".hs" . filter (not . isSpace) . substitute '/' '.' . stripPrefix "./" $ filename
-                    -- misschien die strippostfix vervangen met takeWhile (/='.'), dan heb je ook meteen dat .lhs werkt
+                    -- TODO misschien die strippostfix vervangen met takeWhile (/='.'), dan heb je ook meteen dat .lhs werkt
+                    -- TODO literate haskell laten werken
                 in if name == supposedname
                     then Right $ Module name [] []
-                    else Left $ ParseError (ParseModuleFileName name supposedname) (Pos 1 1) filename
+                    else Left $ ParseError (ParseModuleFileName name supposedname) (Pos 1 1) filename --TODO errors ook met getLoc doen 
 
 
 -- TODO checken dat hele file geparsed is. Dus of niet parseResult gebruiken maar parse, en dan kijken dat rest==[], 

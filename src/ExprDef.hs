@@ -13,7 +13,7 @@ type PToken = (SToken, Pos)
 type SToken = (Token, String)
 
 
-data Token
+data Token -- TODO Kijken welke allemaal gebruikt worden, de rest eruit
     = TSemicolon
     | TBracketOpen
     | TBracketClose
