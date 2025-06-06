@@ -1,133 +1,226 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Move brackets to avoid $" #-}
 module Lexer (
-    tokenize,
-    withpos --todo deze eruit
-, qvarTP
-, conTP
-, varTP) where
+    -- tokenize,
+    -- withpos --todo deze eruit
+-- , qvarTP
+-- , conTP
+-- , varTP
+ runParserLex,
+ SString) where
 
-import ExprDef (SToken, Token (..), Pos (..), PToken)
+import ExprDef
 import qualified ParserCombs as P
 
 import Data.Char (isAlphaNum, isUpper, isLower, isDigit)
 import Control.Applicative (many, Alternative ((<|>), some), optional)
 import Data.Functor (($>))
 import Error ( ParseError (..), Error (ParseError))
+import Utils
 
 
+-- TODO layout
+-- TODO pos
+runParserLex :: P.Parser SString Error a -> String -> String -> Either Error (a, [SString])
+runParserLex p filename input = tokenize input >>= runParserLex' p filename
 
+runParserLex' :: P.Parser SString Error a -> String -> [SString] -> Either Error (a, [SString])
+runParserLex' p filename [] = P.runParser p []
+runParserLex' p filename (s:ss) =
+            let p' = P.Parser $ \i -> P.runParser p (s:i)
+            in case runParserLex' p' filename ss of
+                Right x -> Right x
+                Left e -> if True -- TODO layout
+                    then runParserLex' p' filename ((WithSource "}" (source s)):ss)
+                    else case e of --Dit is niet de meest elegante manier om hier source van in te bakken, maar afijn
+                        ParseError (ParseUnexpectedEOF expect) _ -> Left $ ParseError (ParseUnexpectedEOF expect) (source s)
+                        ParseError ParseEmpty _ -> Left $ ParseError ParseEmpty (source s)
+                        x -> Left x
 
+type SString = WithSource String
 
+-- TODO doen
+tokenize :: String -> Either Error [SString]
+tokenize = ncommentfilter . withpos
 
 --TODO whitespace tokens filteren
 
-
---------------------------------------
---------------------------------------
---------------------------------------
---------------------------------------
---------------------------------------
---------------------------------------
---------------------------------------
---------------------------------------
---------------------------------------
-
-
-
-
-
-
-
-
-
-
-
-withpos :: String -> [(Char, Pos)]
-withpos = go (Pos { line = 1, col = 1 })
+withpos :: String -> String -> [WithSource Char]
+withpos filename = map (\(c,line,col) -> WithSource c $ Source filename line col) . go 1 1
     where
-        go p@(Pos line col) ('\r':'\n':ss) = ('\r',p) : ('\n',p) : go (Pos (line+1) 1) ss
-        go p@(Pos line col) ('\r':ss) = ('\r',p) : go (Pos (line+1) 1) ss
-        go p@(Pos line col) ('\n':ss) = ('\n',p) : go (Pos (line+1) 1) ss
-        go p@(Pos line col) ('\f':ss) = ('\f',p) : go (Pos (line+1) 1) ss
-        go p@(Pos line col) ('\t':ss) =
+        go :: Int -> Int -> String -> [(Char, Int, Int)]
+        go line col ('\r':'\n':ss) = ('\r', line, col) : ('\n', line, col) : go (line+1) 1 ss
+        go line col ('\r':ss) = ('\r', line, col) : go (line+1) 1 ss
+        go line col ('\n':ss) = ('\n', line, col) : go (line+1) 1 ss
+        go line col ('\f':ss) = ('\f', line, col) : go (line+1) 1 ss
+        go line col ('\t':ss) =
             let r = col `rem` 8
                 extra = 8 - r
-                p' = Pos line (col + extra)
-            in ('\t',p') : go (Pos line (col+1+extra)) ss
-        go p@(Pos line col) (c:ss) = (c,p) : go (Pos line (col+1)) ss
-        go p@(Pos line col) [] = []
+            in ('\t', line, col+extra) : go line (col+1+extra) ss
+        go line col (c:ss) = (c,line, col) : go line (col+1) ss
+        go line col [] = []
+
+
+ncommentfilter :: [WithSource Char] -> Either Error [WithSource Char]
+ncommentfilter input =
+    let go s n (a:b:c:xs) | val a == '{', val b == '-', val c /= '#' = go (source a) (n+1) xs
+        go s n (a:b:xs) | val a == '-', val b == '}' =
+            if n == 1
+                then Right xs
+                else if n > 1
+                    then go (source a) (n-1) xs
+                    else error "During ncommentfilter go value n<1. This should not happen."
+        go s n (_:xs) = go s n xs
+        go s _ [] = Left (ParseError ParseUnclosedNComment s)
+    in go (Source "" 0 0) 0 input
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--------------------------------------
+--------------------------------------
+--------------------------------------
+--------------------------------------
+--------------------------------------
+--------------------------------------
+--------------------------------------
+--------------------------------------
+--------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+-- withpos :: String -> [(Char, Pos)]
+-- withpos = go (Pos { line = 1, col = 1 })
+--     where
+--         go p@(Pos line col) ('\r':'\n':ss) = ('\r',p) : ('\n',p) : go (Pos (line+1) 1) ss
+--         go p@(Pos line col) ('\r':ss) = ('\r',p) : go (Pos (line+1) 1) ss
+--         go p@(Pos line col) ('\n':ss) = ('\n',p) : go (Pos (line+1) 1) ss
+--         go p@(Pos line col) ('\f':ss) = ('\f',p) : go (Pos (line+1) 1) ss
+--         go p@(Pos line col) ('\t':ss) =
+--             let r = col `rem` 8
+--                 extra = 8 - r
+--                 p' = Pos line (col + extra)
+--             in ('\t',p') : go (Pos line (col+1+extra)) ss
+--         go p@(Pos line col) (c:ss) = (c,p) : go (Pos line (col+1)) ss
+--         go p@(Pos line col) [] = []
 
 
 --tokenize :: String -> Either (String -> Error) [SToken]
-tokenize x = P.parseResult programP $ withpos x
+-- tokenize x = P.parseResult programP $ withpos x
 
 --TODO voor pragmas, als allereerste parser een pragma parser ertussen stoppen (dus between {-# en #-})
-programP :: P.Parser Char [PToken]
-programP = let p = P.many' (ncommentP <|> whitespaceP <|> lexemeP <|> newlineP <|> ((\c -> (TTEST,[c])) <$> anyP )) -- TODO dit laatste vervangen met EOF
-            in map (\(a,b) -> (mapReserved a,b)) <$> p
+-- programP :: P.Parser Char [PToken]
+-- programP = let p = P.many' (ncommentP <|> whitespaceP <|> lexemeP <|> newlineP <|> ((\c -> (TTEST,[c])) <$> anyP )) -- TODO dit laatste vervangen met EOF
+--             in map (\(a,b) -> (mapReserved a,b)) <$> p
 
 -- TODO literate haskel
-ncommentP :: P.Parser Char (Token, String)
-ncommentP = (P.string "{-" *> ncommentfilterP) $> (TWhiteSpace, "")
+-- ncommentP :: P.Parser Char (Token, String)
+-- ncommentP = (P.string "{-" *> ncommentfilterP) $> (TWhiteSpace, "")
 
-ncommentfilterP :: P.Parser Char ()
-ncommentfilterP = P.Parser $ \(rp,input) ->
-    let go n (('{',_):('-',_):xs) = go (n+1) xs
-        go n (('-',_):('}',pos):xs)
-            | n > 1     = go (n-1) xs
-            | n == 1    = Right (((),pos), (pos, xs))
-        go n (_:xs) = go n xs
-        go _ [] = Left (ParseError ParseUnclosedNComment rp)
-    in go 1 input
+-- ncommentfilterP :: P.Parser Char ()
+-- ncommentfilterP = P.Parser $ \(rp,input) ->
+--     let go n (('{',_):('-',_):xs) = go (n+1) xs
+--         go n (('-',_):('}',pos):xs)
+--             | n > 1     = go (n-1) xs
+--             | n == 1    = Right (((),pos), (pos, xs))
+--         go n (_:xs) = go n xs
+--         go _ [] = Left (ParseError ParseUnclosedNComment rp)
+--     in go 1 input
 
 -- TODO rest aan toevoegen!
-lexemeP :: P.Parser Char (Token, String)
-lexemeP = qvaridP <|> qconidP <|> qvarsymP <|> specialP
+-- lexemeP :: P.Parser Char (Token, String)
+-- lexemeP = qvaridP <|> qconidP <|> qvarsymP <|> specialP
 
-specialP :: P.Parser Char (Token, String)
-specialP = (\s -> (TSpecial,[s])) <$> P.satisfy isSpecial "special symbol"
+-- specialP :: P.Parser Char (Token, String)
+-- specialP = (\s -> (TSpecial,[s])) <$> P.satisfy isSpecial "special symbol"
 
-qvaridP :: P.Parser Char (Token, String)
-qvaridP = (\s -> (TVarid,s)) <$> ( (++) <$> (modidQP <|> pure [])  <*> (snd <$> varidP))
+-- qvaridP :: P.Parser Char (Token, String)
+-- qvaridP = (\s -> (TVarid,s)) <$> ( (++) <$> (modidQP <|> pure [])  <*> (snd <$> varidP))
 
-qconidP :: P.Parser Char (Token, String)
-qconidP = (\s -> (TConid,s)) <$> ( (++) <$> (modidQP <|> pure [])  <*> (snd <$> conidP))
+-- qconidP :: P.Parser Char (Token, String)
+-- qconidP = (\s -> (TConid,s)) <$> ( (++) <$> (modidQP <|> pure [])  <*> (snd <$> conidP))
 
-qvarsymP :: P.Parser Char (Token, String)
-qvarsymP = (\s1 (t,s2) -> (t,s1++s2)) <$> (modidQP <|> pure [])  <*> varsymP
+-- qvarsymP :: P.Parser Char (Token, String)
+-- qvarsymP = (\s1 (t,s2) -> (t,s1++s2)) <$> (modidQP <|> pure [])  <*> varsymP
 
-modidSP :: P.Parser Char [Char]
-modidSP =
-    let f (_,c) '.' = c <> "."
-        g ss s = concat ss <> s
-    in g <$> many (f <$> conidP <*> P.char '.') <*> (snd <$> conidP)
+-- modidSP :: P.Parser Char [Char]
+-- modidSP =
+--     let f (_,c) '.' = c <> "."
+--         g ss s = concat ss <> s
+--     in g <$> many (f <$> conidP <*> P.char '.') <*> (snd <$> conidP)
 
-modidP :: P.Parser Char (Token, String)
-modidP = (\v -> (TModid,v)) <$> modidSP
+-- modidP :: P.Parser Char (Token, String)
+-- modidP = (\v -> (TModid,v)) <$> modidSP
 
-modidQP :: P.Parser Char String
-modidQP = (\a _ -> a <> ".") <$> modidSP <*> P.char '.'
+-- modidQP :: P.Parser Char String
+-- modidQP = (\a _ -> a <> ".") <$> modidSP <*> P.char '.'
 
 
-newlineP :: P.Parser Char (Token, String)
-newlineP = (\v -> (TWhiteSpace, v)) <$>  (P.string "\r\n" <|> P.string "\r" <|> P.string "\n" <|> P.string "\f" )
+-- newlineP :: P.Parser Char (Token, String)
+-- newlineP = (\v -> (TWhiteSpace, v)) <$>  (P.string "\r\n" <|> P.string "\r" <|> P.string "\n" <|> P.string "\f" )
 
-whitespaceP :: P.Parser Char (Token, String)
-whitespaceP = some ((whitechar $> ()) <|> commentP) $> (TWhiteSpace, "")
-    where
-        whitechar = P.char '\v' <|> P.char ' ' <|> P.char '\t' -- <|> uniWhite TODO unicode encoding, here whitespace
+-- whitespaceP :: P.Parser Char (Token, String)
+-- whitespaceP = some ((whitechar $> ()) <|> commentP) $> (TWhiteSpace, "")
+--     where
+--         whitechar = P.char '\v' <|> P.char ' ' <|> P.char '\t' -- <|> uniWhite TODO unicode encoding, here whitespace
 
-commentP :: P.Parser Char () --TODO willen we iets met comments? Niet nodig voor parsen en runnen.....
-commentP = (dashes *> optional (P.satisfy (not . isSymbol) "not a symbol" *> many anyP) *> newlineP) $> () --TODO unicode symbols ook 
-    where dashes = P.string "--" *> many (P.char '-')
+-- commentP :: P.Parser Char () --TODO willen we iets met comments? Niet nodig voor parsen en runnen.....
+-- commentP = (dashes *> optional (P.satisfy (not . isSymbol) "not a symbol" *> many anyP) *> newlineP) $> () --TODO unicode symbols ook 
+--     where dashes = P.string "--" *> many (P.char '-')
 
-anyP :: P.Parser Char Char
-anyP = P.overrideError (graphic <|> P.char ' ' <|> P.char '\t') $ ParseUnexpected "not any" "any" -- dit is geen goede error maar past ook niet echt erin...
-    where
-        graphic = smallP <|> largeP <|> symbolP <|> digitP
-                         <|> P.satisfy isSpecial "special symbol" <|> P.char ':'
-                         <|> P.char '"' <|> P.char '\''
+-- anyP :: P.Parser Char Char
+-- anyP = P.overrideError (graphic <|> P.char ' ' <|> P.char '\t') $ ParseUnexpected "not any" "any" -- dit is geen goede error maar past ook niet echt erin...
+--     where
+--         graphic = smallP <|> largeP <|> symbolP <|> digitP
+--                          <|> P.satisfy isSpecial "special symbol" <|> P.char ':'
+--                          <|> P.char '"' <|> P.char '\''
 
 
 
@@ -166,29 +259,29 @@ isSymbol '-'    = True
 isSymbol '~'    = True
 isSymbol _      = False
 
-symbolP :: P.Parser Char Char
-symbolP = P.satisfy isSymbol "symbol"
+-- symbolP :: P.Parser Char Char
+-- symbolP = P.satisfy isSymbol "symbol"
 
-conidP :: P.Parser Char (Token, String)
-conidP = (\v -> (TConid, v)) <$> (
-                (:)
-                    <$> largeP
-                    <*> many (P.satisfy isAlphaNum "alphabetic character or digit" <|> P.char '\'')
-                )
+-- conidP :: P.Parser Char (Token, String)
+-- conidP = (\v -> (TConid, v)) <$> (
+--                 (:)
+--                     <$> largeP
+--                     <*> many (P.satisfy isAlphaNum "alphabetic character or digit" <|> P.char '\'')
+--                 )
 
-varidP :: P.Parser Char (Token, String)
-varidP = (\v -> (TVarid, v)) <$> (
-                (:)
-                    <$> smallP
-                    <*> many (P.satisfy isAlphaNum "alphabetic character or digit" <|> P.char '\'')
-                )
+-- varidP :: P.Parser Char (Token, String)
+-- varidP = (\v -> (TVarid, v)) <$> (
+--                 (:)
+--                     <$> smallP
+--                     <*> many (P.satisfy isAlphaNum "alphabetic character or digit" <|> P.char '\'')
+--                 )
 
-varsymP :: P.Parser Char (Token, String)
-varsymP = (\v -> if isReservedOp v then (TSpecialOp,v) else (TVarsym, v)) <$> (
-                (:)
-                    <$> symbolP
-                    <*> many (symbolP <|> P.char ':')
-                )
+-- varsymP :: P.Parser Char (Token, String)
+-- varsymP = (\v -> if isReservedOp v then (TSpecialOp,v) else (TVarsym, v)) <$> (
+--                 (:)
+--                     <$> symbolP
+--                     <*> many (symbolP <|> P.char ':')
+--                 )
 
 isReservedOp :: String -> Bool
 isReservedOp ".."   = True
@@ -206,17 +299,17 @@ isReservedOp _      = False
 
 
 
-smallP :: P.Parser Char Char
-smallP = P.satisfy (\c -> isLower c || c=='_') "lowercase letter or underscore"
+-- smallP :: P.Parser Char Char
+-- smallP = P.satisfy (\c -> isLower c || c=='_') "lowercase letter or underscore"
 
-largeP :: P.Parser Char Char
-largeP = P.satisfy isUpper "upper case letter"
+-- largeP :: P.Parser Char Char
+-- largeP = P.satisfy isUpper "upper case letter"
 
-digitP :: P.Parser Char Char
-digitP = P.satisfy isDigit "digit"
+-- digitP :: P.Parser Char Char
+-- digitP = P.satisfy isDigit "digit"
 
-smalllargedigitP :: P.Parser Char Char
-smalllargedigitP = P.satisfy (\c -> isUpper c || isLower c || isDigit c || c=='_') "alphabetic character or digit or underscore"
+-- smalllargedigitP :: P.Parser Char Char
+-- smalllargedigitP = P.satisfy (\c -> isUpper c || isLower c || isDigit c || c=='_') "alphabetic character or digit or underscore"
 
 
 mapReserved :: (Token, String) -> (Token, String)
@@ -249,21 +342,21 @@ mapReserved x                    = x
 
 --------------------------------------------------------------
 ---- ON TOKENS 
-qvarTP :: P.TParser SToken
-qvarTP = P.token TVarid <|> 
-        P.between (P.stoken (TSpecial, "(")) (P.stoken (TSpecial, ")")) 
-            (P.token TVarsym)
+-- qvarTP :: P.TParser SToken
+-- qvarTP = P.token TVarid <|> 
+--         P.between (P.stoken (TSpecial, "(")) (P.stoken (TSpecial, ")")) 
+--             (P.token TVarsym)
 
-conTP :: P.TParser SToken
-conTP = P.Parser $ \input -> case P.runParser (P.token TConid) input of
-                        Left x -> Left x
-                        Right r@(((t,s),pos), _) -> if '.' `elem` s 
-                                then Left (ParseError (ParseUnexpected s "non-qualified constructor") pos)
-                                else Right r
+-- conTP :: P.TParser SToken
+-- conTP = P.Parser $ \input -> case P.runParser (P.token TConid) input of
+--                         Left x -> Left x
+--                         Right r@(((t,s),pos), _) -> if '.' `elem` s 
+--                                 then Left (ParseError (ParseUnexpected s "non-qualified constructor") pos)
+--                                 else Right r
 
-varTP :: P.TParser SToken
-varTP = P.Parser $ \input -> case P.runParser (P.token TVarid) input of
-                        Left x -> Left x
-                        Right r@(((t,s),pos), _) -> if '.' `elem` s 
-                                then Left (ParseError (ParseUnexpected s "non-qualified variable") pos)
-                                else Right r
+-- varTP :: P.TParser SToken
+-- varTP = P.Parser $ \input -> case P.runParser (P.token TVarid) input of
+--                         Left x -> Left x
+--                         Right r@(((t,s),pos), _) -> if '.' `elem` s 
+--                                 then Left (ParseError (ParseUnexpected s "non-qualified variable") pos)
+--                                 else Right r

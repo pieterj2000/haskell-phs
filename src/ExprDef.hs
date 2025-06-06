@@ -2,14 +2,16 @@
 module ExprDef
 (
     Token(..),
-    Pos(..),
+    -- Pos(..),
     SToken,
     Module(..),
-    PToken
+    -- PToken
+    Source(..),
+    WithSource(..)
 ) where
 
 
-type PToken = (SToken, Pos)
+-- type PToken = (SToken, Pos)
 type SToken = (Token, String)
 
 
@@ -50,14 +52,30 @@ data Token -- TODO Kijken welke allemaal gebruikt worden, de rest eruit
     | TTEST -- TODO weghalen
     deriving (Eq, Show) --TODO Show instatnie zelf
 
-data Pos = Pos {
+-- data Pos = Pos {
+    -- line :: Int,
+    -- col :: Int
+-- } deriving (Eq)
+
+
+data Source = Source {
+    file :: String,
     line :: Int,
     col :: Int
-} deriving (Eq)
+}
 
-instance Show Pos where
-  show :: Pos -> String
-  show (Pos line col) = show line <> ":" <> show col
+instance Show Source where
+    show :: Source -> String 
+    show (Source file line col) = file <> ":" <> show line <> ":" <> show col
+
+data WithSource a = WithSource {
+    val :: a,
+    source :: Source
+}
+
+-- instance Show Pos where
+--   show :: Pos -> String
+--   show (Pos line col) = show line <> ":" <> show col
 
 
 data Module = Module {

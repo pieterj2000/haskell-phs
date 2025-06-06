@@ -1,3 +1,1 @@
-
-
-main = 39
+main = var

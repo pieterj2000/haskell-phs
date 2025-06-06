@@ -4,16 +4,16 @@ module Error (
     ParseError(..)
 ) where
 
-import ExprDef (Pos (..))
+import ExprDef
 
 
 data Error
-    = ParseError ParseError Pos String -- pos string error 
+    = ParseError ParseError Source 
 
 data ParseError
     = ParseModuleFileName String String -- real module name, expected name
-    | ParseUnexpectedEOF String 
-    | ParseUnexpected String String -- got, expectged
+    | ParseUnexpectedEOF String --expected
+    | ParseUnexpected String String -- got, expected
     | ParseEmpty 
     | ParseUnclosedNComment
     | ParseExpectedEOF
@@ -21,14 +21,14 @@ data ParseError
 
 instance Show Error where
     show :: Error -> String
-    show (ParseError (ParseModuleFileName mname expected) pos file) = parseError file <> "expected module " <> mname <> " to be named " <> expected
-    show (ParseError (ParseUnexpectedEOF expected) pos file)        = parseError' pos file <> "unexpected End-Of-File, expected " <> expected
-    show (ParseError (ParseUnexpected got expected) pos file)       = parseError' pos file <> "unexpected input " <> got <> ", expected " <> expected
-    show (ParseError ParseEmpty pos file)                           = parseError' pos file <> "empty (alternative instance of) parser. TODO fix better error"
-    show (ParseError ParseUnclosedNComment pos file)                = parseError' pos file <> "unclosed {-"
-    show (ParseError (LayoutError s) pos file)                      = parseError' pos file <> s
+    show (ParseError (ParseModuleFileName mname expected) src) = parseError src <> "expected module " <> mname <> " to be named " <> expected
+    show (ParseError (ParseUnexpectedEOF expected) src)        = parseError src <> "unexpected End-Of-File, expected " <> expected
+    show (ParseError (ParseUnexpected got expected) src)       = parseError' src <> "unexpected input " <> got <> ", expected " <> expected
+    show (ParseError ParseEmpty src)                           = parseError' src <> "empty (alternative instance of) parser. TODO fix better error"
+    show (ParseError ParseUnclosedNComment src)                = parseError' src <> "unclosed {-"
+    show (ParseError (LayoutError s) src)                      = parseError' src <> s
 
-parseError :: String -> String 
-parseError file = "Parse error " <> file <> ": "
-parseError' :: Pos -> String -> String 
-parseError' pos file = "Parse error " <> file <> ":" <> show pos <> ": "
+parseError :: Source -> String 
+parseError src = "Parse error " <> file src <> ": "
+parseError' :: Source -> String 
+parseError' src = "Parse error " <> show src <> ": "
