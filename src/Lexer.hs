@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Move brackets to avoid $" #-}
 module Lexer (
-    -- tokenize,
+    tokenize,
     -- withpos --todo deze eruit
 -- , qvarTP
 -- , conTP
@@ -22,7 +22,7 @@ import Utils
 -- TODO layout
 -- TODO pos
 runParserLex :: P.Parser SString Error a -> String -> String -> Either Error (a, [SString])
-runParserLex p filename input = tokenize input >>= runParserLex' p filename
+runParserLex p filename input = tokenize filename input >>= runParserLex' p filename
 
 runParserLex' :: P.Parser SString Error a -> String -> [SString] -> Either Error (a, [SString])
 runParserLex' p filename [] = P.runParser p []
@@ -39,11 +39,26 @@ runParserLex' p filename (s:ss) =
 
 type SString = WithSource String
 
--- TODO doen
-tokenize :: String -> Either Error [SString]
-tokenize = ncommentfilter . withpos
 
---TODO whitespace tokens filteren
+tokenize :: String -> String -> Either Error [SString]
+tokenize filename = fmap (splitOnWhite . commentfilter) . ncommentfilter . withpos filename
+
+--TODO whitespace in strings nog, mss in tokenize een losse dinges erin doen (na comments, voor splitonwhite)
+splitOnWhite :: [WithSource Char] -> [WithSource String]
+splitOnWhite input =
+    let spul = dropWhile (isWhiteChar . val) input
+        (token, rest) = break (isWhiteChar . val) spul
+        token' = WithSource (map val token) (source $ head token)
+    in if null spul then [] else token' : splitOnWhite rest
+
+isWhiteChar :: Char -> Bool
+isWhiteChar '\n' = True
+isWhiteChar '\v' = True
+isWhiteChar ' '  = True
+isWhiteChar '\t' = True
+isWhiteChar '\r' = True
+isWhiteChar '\f' = True
+isWhiteChar _ = False
 
 withpos :: String -> String -> [WithSource Char]
 withpos filename = map (\(c,line,col) -> WithSource c $ Source filename line col) . go 1 1
@@ -60,18 +75,29 @@ withpos filename = map (\(c,line,col) -> WithSource c $ Source filename line col
         go line col (c:ss) = (c,line, col) : go line (col+1) ss
         go line col [] = []
 
+commentfilter :: [WithSource Char] -> [WithSource Char]
+commentfilter (a:b:c:xs)
+    | val a == '-', val b == '-', (not . isSymbol $ val c) = commentfilter rest
+        where
+            l = line . source $ a
+            rest = dropWhile ((==l) . line . source) xs
+commentfilter (x:xs) = x : commentfilter xs
+commentfilter [] = []
 
 ncommentfilter :: [WithSource Char] -> Either Error [WithSource Char]
 ncommentfilter input =
-    let go s n (a:b:c:xs) | val a == '{', val b == '-', val c /= '#' = go (source a) (n+1) xs
+    let go :: Source -> Int -> [WithSource Char] -> Either Error [WithSource Char]
+        go s n (a:b:c:xs) | val a == '{', val b == '-', (val c /= '#' || n > 0) = go (if n > 0 then s else source a) (n+1) (c:xs)
         go s n (a:b:xs) | val a == '-', val b == '}' =
             if n == 1
                 then Right xs
                 else if n > 1
-                    then go (source a) (n-1) xs
+                    then go s (n-1) xs
                     else error "During ncommentfilter go value n<1. This should not happen."
         go s n (_:xs) = go s n xs
-        go s _ [] = Left (ParseError ParseUnclosedNComment s)
+        go s n []
+            | n > 0 = Left (ParseError ParseUnclosedNComment s)
+            | otherwise = Right input
     in go (Source "" 0 0) 0 input
 
 
@@ -221,6 +247,7 @@ ncommentfilter input =
 --         graphic = smallP <|> largeP <|> symbolP <|> digitP
 --                          <|> P.satisfy isSpecial "special symbol" <|> P.char ':'
 --                          <|> P.char '"' <|> P.char '\''
+
 
 
 

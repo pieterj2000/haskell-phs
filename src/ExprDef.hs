@@ -71,7 +71,12 @@ instance Show Source where
 data WithSource a = WithSource {
     val :: a,
     source :: Source
-}
+} deriving (Show) -- TODO show instance zelf doen of mss weghalen
+
+
+instance Functor WithSource where
+  fmap :: (a -> b) -> WithSource a -> WithSource b
+  fmap f (WithSource v s) = WithSource (f v) s
 
 -- instance Show Pos where
 --   show :: Pos -> String
