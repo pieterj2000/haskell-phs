@@ -80,12 +80,12 @@ executable phs
 
     -- Modules included in this executable, other than Main.
     other-modules:
-        Parser
+        Parser.Parser
+        Parser.Lexer.Layout
+        Parser.Lexer
+        Parser.Module
         Error
-        Module
-        Lexer.Layout
         ExprDef
-        Lexer
         ParserCombs
         LambdaCalc
         Utils

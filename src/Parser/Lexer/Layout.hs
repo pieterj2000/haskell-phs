@@ -1,4 +1,4 @@
-module Lexer.Layout
+module Parser.Lexer.Layout
 (
     -- handleLayout
 ) where

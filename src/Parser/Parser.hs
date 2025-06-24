@@ -1,4 +1,4 @@
-module Parser
+module Parser.Parser
 (
 parseFile) where
 
@@ -10,7 +10,7 @@ import qualified ParserCombs as P
 import Control.Applicative (Alternative(..))
 import Data.Char (isLower, isAlpha, isUpper, isDigit)
 
-import Lexer
+import Parser.Lexer
 
 data HExpr
     = HExpr String

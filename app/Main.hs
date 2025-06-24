@@ -2,12 +2,12 @@ module Main (main) where
 
 import System.Environment (getArgs)
 
-import Module 
-import Lexer 
+import Parser.Module 
+import Parser.Lexer 
 import ExprDef (Module(..))
 import LambdaCalc
-import Parser
-import Lexer
+import Parser.Parser
+
 
 main :: IO ()
 main = do

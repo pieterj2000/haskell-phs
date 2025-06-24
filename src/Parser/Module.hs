@@ -1,4 +1,4 @@
-module Module (
+module Parser.Module (
     -- parseModule,
     --parseFile) 
 ) where
@@ -19,7 +19,6 @@ import Data.Char (isSpace)
 -- TODO ergens op een goeie plek zetten en goed doen 
 -- parseFile :: String -> String -> Either Error Module
 -- parseFile = parseModule
-
 
 
 -- TODO verplaatsen naar iets van utils?

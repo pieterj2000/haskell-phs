@@ -3,5 +3,6 @@
 {- -}{- -}--}}-}
 
 
+--main = "asdf\  \asdf"
 main = var
 

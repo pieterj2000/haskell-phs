@@ -1,6 +1,4 @@
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-{-# HLINT ignore "Move brackets to avoid $" #-}
-module Lexer (
+module Parser.Lexer (
     tokenize,
     -- withpos --todo deze eruit
 -- , qvarTP
@@ -41,14 +39,55 @@ type SString = WithSource String
 
 
 tokenize :: String -> String -> Either Error [SString]
-tokenize filename = fmap (splitOnWhite . commentfilter) . ncommentfilter . withpos filename
+tokenize filename = fmap (split . commentfilter) . ncommentfilter . withpos filename
+
+
+split :: [WithSource Char] -> [WithSource String]
+split input = 
+    let isding c = c == '\'' || c == '"'
+        (eerst, rest) = break (isding . val) input
+        eerst' = splitOnWhite eerst
+    in if null rest 
+        then eerst'
+        else eerst' ++ case head rest of -- TODO difference list gebruiken
+            (WithSource '\'' s) -> splitChar rest
+            (WithSource '"' s) -> splitString rest
+            _ -> error "Error in Lexer.split: weird case option. This should not happen"
+
+splitChar :: [WithSource Char] -> [WithSource String]
+splitChar spul = let (chars, rest) = go $ tail spul in sCharConcat (head spul : chars) : rest
+    where
+        go (a:b:xs) | val a == '\\', val b == '\''  = let (chars, rest) = go xs in (a:b:chars, rest)
+        go (a:xs)   | val a == '\''                 = ([a], split xs)
+        go (a:xs)                                   = let (chars, rest) = go xs in (a:chars, rest)
+        go []                                       = ([], [])
+
+splitString :: [WithSource Char] -> [WithSource String]
+splitString spul = let (chars, rest) = go $ tail spul in sCharConcat (head spul : chars) : rest
+    where
+        go (a:b:xs) | val a == '\\', val b == '\"'          = let (chars, rest) = go xs in (a:b:chars, rest)
+        go (a:b:xs) | val a == '\\', isWhiteChar (val b)    = 
+            let skipwhite = dropWhile (isWhiteChar . val) xs
+                skipwhite' = if null skipwhite then skipwhite else tail skipwhite -- afsluitende \ ook weghalen
+            in go skipwhite'
+        go (a:b:xs) | val a == '\\'                         = let (chars, rest) = go xs in (a:b:chars, rest)
+        go (a:xs)   | val a == '\"'                         = ([a], split xs)
+        go (a:xs)                                           = let (chars, rest) = go xs in (a:chars, rest)
+        go []                                               = ([], [])
+        
+
+
+sCharConcat :: [WithSource Char] -> WithSource String
+sCharConcat [] = error "sCharConcat with empty list. This should not happen"
+sCharConcat spul = WithSource (map val spul) (source $ head spul)
+
 
 --TODO whitespace in strings nog, mss in tokenize een losse dinges erin doen (na comments, voor splitonwhite)
 splitOnWhite :: [WithSource Char] -> [WithSource String]
 splitOnWhite input =
     let spul = dropWhile (isWhiteChar . val) input
         (token, rest) = break (isWhiteChar . val) spul
-        token' = WithSource (map val token) (source $ head token)
+        token' = sCharConcat token
     in if null spul then [] else token' : splitOnWhite rest
 
 isWhiteChar :: Char -> Bool
