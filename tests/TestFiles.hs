@@ -8,7 +8,7 @@ import System.IO (hShow, hGetContents')
 tests = [
     ("integer1.hs", 1),
     ("integerneg1.hs", -1),
-    ("integerneg2.hs", -133)
+    ("integerneg2.hs", -1333)
     ]
 
 
