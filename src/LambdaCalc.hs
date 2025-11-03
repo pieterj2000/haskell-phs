@@ -1,10 +1,11 @@
 module LambdaCalc where -- TODO exportlijst
+
 import ExprDef
 
 
 
-declToLambda :: HDecl -> LambdaCalc
-declToLambda (HDecl name params )
+-- declToLambda :: HDecl -> LambdaCalc
+-- declToLambda (HDecl name params )
 
 
 

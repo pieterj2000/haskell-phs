@@ -1,6 +1,6 @@
 module Parser.Module (
     -- parseModule,
-    parseFile
+    --parseFile
     ) where
 
 import Data.Functor (($>))
@@ -20,18 +20,18 @@ import Parser.Parser
 
 
 
-parseFile :: String -> String -> Either Error (Module HDecl)
-parseFile filename input = fst <$> runParserLex (moduleP filename) filename input
+-- parseFile :: String -> String -> Either Error (Module HDecl)
+-- parseFile filename input = fst <$> runParserLex (moduleP filename) filename input
 
 
-moduleP :: String -> P.Parser SString Error (Module HDecl)
-moduleP filename = 
-    (Module 
-        "TODO modulename" 
-        filename
-        [] -- TODO moduleImports
-        [] -- TODO moduleExports
-        . M.fromList . map (\x@(HDecl s _ _ _) -> (s,x)) . pure) <$> declaration
+-- moduleP :: String -> P.Parser SString Error (Module HDecl)
+-- moduleP filename = 
+--     (Module 
+--         "TODO modulename" 
+--         filename
+--         [] -- TODO moduleImports
+--         [] -- TODO moduleExports
+--         -- . M.fromList . map (\x@(HDecl s _ _ _) -> (s,x)) . pure) <$> declaration
 
 
 

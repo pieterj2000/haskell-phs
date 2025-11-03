@@ -21,8 +21,8 @@ main = do
                     --ast = parseFile (drop 4 inputfile) input --TODO die drop 4 is nodig om src/ of app/ eruit te halen, moet later goed als je folder aware bent zeg maar
                     ast = parseFile inputfile input
                 --print textpos
-                print $ tokenize inputfile input
                 print ast
+                
     -- print test
     -- print $ lambdaToDeBruin test
     -- print $ apply (lambdaToDeBruin test) $ Bprim "a"

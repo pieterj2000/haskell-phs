@@ -8,7 +8,6 @@ module ExprDef
     -- PToken
     Source(..),
     WithSource(..),
-    HDecl (..),
     HExpr (..)
 ) where
 import qualified Data.Map as M
@@ -95,7 +94,7 @@ data Module a = Module {
 } deriving (Show) -- TODO show instance
 
 data HExpr
-    = HExpr String
+    = HInt Int
     deriving (Show)
 
 
@@ -119,10 +118,12 @@ STAP 3(?) Wanneer typechecken? Kan dit al tegelijkertijd met stap 2e/f? Of is da
 
 
 
+
+
     
-data HDecl
-    = HFuncBinding String [Pattern] [Match] HExpr -- name, parameters, TODO guards, definition -- TODO dit moet lazy binding zijn? nog uitzoeken/doen
-    deriving (Show)
+-- data HDecl
+--     = HFuncBinding String [Pattern] [Match] HExpr -- name, parameters, TODO guards, definition -- TODO dit moet lazy binding zijn? nog uitzoeken/doen
+--     deriving (Show)
 
 
 -- TODO
