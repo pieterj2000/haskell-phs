@@ -2,7 +2,7 @@ module Main (main) where
 
 import System.Environment (getArgs)
 
-import Parser.Module 
+import Parser.Module
 import Parser.Lexer 
 import ExprDef (Module(..))
 import LambdaCalc

@@ -7,8 +7,11 @@ module ExprDef
     Module(..),
     -- PToken
     Source(..),
-    WithSource(..)
+    WithSource(..),
+    HDecl (..),
+    HExpr (..)
 ) where
+import qualified Data.Map as M
 
 
 -- type PToken = (SToken, Pos)
@@ -83,11 +86,47 @@ instance Functor WithSource where
 --   show (Pos line col) = show line <> ":" <> show col
 
 
-data Module = Module {
-    name :: String,
-    defs :: [Def],
-    deps :: [(Module, [String])] --modules die nodig zijn
-} -- deriving (Show) -- TODO show instantie
+data Module a = Module {
+    moduleName :: String,
+    moduleFile :: String,
+    moduleImports :: [String],
+    moduleExports :: [String],
+    moduleDefs :: M.Map String a    
+} deriving (Show) -- TODO show instance
 
-data Def = Def 
-    deriving (Show) --TODO Show instantie
+data HExpr
+    = HExpr String
+    deriving (Show)
+
+
+{-
+okeeee, dit veranderen in een LHS RHS iets
+STAP 1: Parsen maar dan alles met een LHS RHS, Dan krijgen we dus een (Module X)
+STAP 2: imports pakken, en dan met context van de imports, een Context iets maken, 
+        en met behulp van die context X-> HDecl doen (en tevens HDecl fixen dat het écht definitief is)
+        a)  Context updaten met type annotations
+        b)  Fixity dingen doen
+        c)  misschien nog andere dingen doen
+        d)  Dan pas de LHR parsen en kijken of er dingen fout gaan
+        e)  Bij RHS en let/where kunnen we de Context lokaal updaten en daarmee verder parsen
+        f)  Gedurende het proces kunnen we ook direct errors gooien als iets 'onbekend' is in de context
+        g)  Dan hebben we uiteindelijk alle definities echt geparsed en in HDecl gepompt
+STAP 3(?) Wanneer typechecken? Kan dit al tegelijkertijd met stap 2e/f? Of is dat beter helemaal achteraf?
+
+
+
+-}
+
+
+
+    
+data HDecl
+    = HFuncBinding String [Pattern] [Match] HExpr -- name, parameters, TODO guards, definition -- TODO dit moet lazy binding zijn? nog uitzoeken/doen
+    deriving (Show)
+
+
+-- TODO
+data Pattern = Pattern deriving (Show) 
+data Match = Match deriving (Show) 
+
+

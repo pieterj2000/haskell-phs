@@ -1,24 +1,72 @@
 module Parser.Module (
     -- parseModule,
-    --parseFile) 
-) where
+    parseFile
+    ) where
 
 import Data.Functor (($>))
 
 
 import qualified ParserCombs as P
-import ExprDef (Module(..), Token (..),  SToken)
+import ExprDef -- (Module(..), Token (..),  SToken)
 import Error ( Error (..), ParseError (ParseModuleFileName) )
 -- import Lexer (tokenize, qvarTP, conTP, varTP)
 import Control.Applicative (Alternative(many, (<|>)))
 import Control.Monad ((<=<), (>=>))
 import Data.Char (isSpace)
+import qualified Data.Map as M
+import Parser.Lexer
+import Parser.Parser
+
+
+
+
+parseFile :: String -> String -> Either Error (Module HDecl)
+parseFile filename input = fst <$> runParserLex (moduleP filename) filename input
+
+
+moduleP :: String -> P.Parser SString Error (Module HDecl)
+moduleP filename = 
+    (Module 
+        "TODO modulename" 
+        filename
+        [] -- TODO moduleImports
+        [] -- TODO moduleExports
+        . M.fromList . map (\x@(HDecl s _ _ _) -> (s,x)) . pure) <$> declaration
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 -- TODO ergens op een goeie plek zetten en goed doen 
 -- parseFile :: String -> String -> Either Error Module
 -- parseFile = parseModule
+
+
 
 
 -- TODO verplaatsen naar iets van utils?
@@ -46,6 +94,7 @@ substitute a b (x:xs)
 -- TODO verplaatsen naar iets van utils, en kijken of dit niet efficienter kan (gebruiken nu om .hs van namen af te strippen)
 stripPostfix :: Eq a => [a] -> [a] -> [a]
 stripPostfix post string = reverse $ stripPrefix (reverse post) (reverse string)
+
 
 
 -- -- Filename, contents
