@@ -1,20 +1,66 @@
+{-# LANGUAGE InstanceSigs #-}
 module Parser.Parser
 -- TODO export list
 where
 
-import Error (Error (..), ParseError (..))
+
 import ExprDef
 
 
 import qualified ParserCombs as P
 import Control.Applicative (Alternative(..))
-import Data.Char (isLower, isAlpha, isUpper, isDigit)
+import Data.Char (isLower, isAlpha, isUpper, isDigit, digitToInt)
 
 import Parser.Lexer
+import Data.Functor (($>))
 
 
-parseFile :: String -> String -> HExpr
-parseFile = undefined
+-- TODO fatsoenlijk error
+data Error = Error String
+instance P.ParseError Error where
+  emptyError :: Error
+  emptyError = Error "error: empty alternative used"
+  unexpectedError :: String -> String -> Error
+  unexpectedError expected got = Error ("error, expected " ++ expected ++ ", got " ++ got ++ " instead")
+
+instance Show Error where
+  show :: Error -> String
+  show (Error s) = s
+
+-- addFileLocation :: String -> Error -> Error
+-- addFileLocation file (Error s)
+
+
+type P = P.Parser Char Error
+
+-- TODO filename in error gooien
+parseFile :: String -> String -> Either Error HExpr
+parseFile filename = P.parseResult integerExpr
+
+-- TODO moet eigenlijk vertaald worden naar 'fromInteger 12345', of 'negate (fromInteger 12345)' als het om -x gaat
+integerExpr :: P HExpr
+integerExpr = HInt <$> signedinteger
+
+signedinteger :: P Int
+signedinteger = ( ((-1)*) <$> (minus *> integer) ) <|> integer
+
+-- TODO dit moet uiteindelijk P.symbol of zo zijn, die specifiek een symbol token eist.
+minus :: P ()
+minus = P.char '-' $> ()
+
+-- TODO Int moet eigenlijk Integer zijn
+integer :: P Int
+integer = foldl' (\acc el -> acc*10 + el) 0 <$> digits
+
+digits :: P [Int]
+digits = some digit
+
+digit :: P Int
+digit = digitToInt <$> P.satisfy isDigit "digit"
+
+
+
+
 
 
 
@@ -43,7 +89,7 @@ parseFile = undefined
 
 -- --TODO naar lexer?
 -- token :: P.Parser Char ParseError a -> P.Parser SString Error (WithSource a)
--- token p = P.Parser $ \input -> case input of 
+-- token p = P.Parser $ \input -> case input of
 --         [] -> Left $ ParseError (ParseUnexpectedEOF "token") (Source "" 0 0)
 --         (s:ss) -> case P.runParser p (val s) of
 --             Left e -> Left $ ParseError e (source s)

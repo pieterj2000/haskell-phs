@@ -3,22 +3,22 @@ module ParserCombs (
     Parser(..),
     -- TParser,
     char,
+    ParseError(..),
     parseResult,
     -- token,
     satisfy,
     -- any,
-    string,
+    -- string,
     between,
     -- overrideError,
     -- many',
-    eof,
+    --eof,
     -- tokens,
     -- tokent,
     -- stoken,
 ) where
 
 import ExprDef
-import Error (Error (..), ParseError (..))
 import Control.Applicative (Alternative (..))
 import Data.Traversable (traverse)
 import Prelude hiding (any)
@@ -29,7 +29,7 @@ import Prelude hiding (any)
 -- TODO error maken zodat pos en filename vanzelf goed gaan. (Source ipv pos)
 newtype Parser i e a = Parser { runParser :: [i] -> Either e (a, [i]) }
 
-
+-- TODO error gooien als niet alles geparsed is!
 parseResult :: Parser i e a -> [i] -> Either e a
 parseResult p = (fst <$>) . runParser p
 
@@ -43,11 +43,6 @@ instance Functor (Parser i e) where
 instance Applicative (Parser i e) where
     pure :: a -> Parser i e a
     pure x = Parser $ \input -> Right (x, input)
-                            --(_,np):_    -> Right ((x,np), (rp,input)) -- When you do (pure [] <*>) for example with an optional qualified
-                                                                      -- then needs to take the pos of the next char, otherwise the token
-                                                                      -- gets the value of one pos before the token  
-                                                                      -- maybe this goes wrong somewhere if you do <*> pure 
-                                                                      -- we'll see it when it happens....
     (<*>) :: Parser i e (a -> b) -> Parser i e a -> Parser i e b
     af <*> ax = Parser $ \input ->
             case runParser af input of
@@ -57,24 +52,26 @@ instance Applicative (Parser i e) where
                   Left e            -> Left e
                   Right (x, rest')  -> Right (f x, rest')
 
-class EmptyError e where
+class ParseError e where
     emptyError :: e
+    -- | expected -> got -> e
+    unexpectedError :: String -> String -> e
 
-instance EmptyError ParseError where
-    emptyError :: ParseError
-    emptyError = ParseEmpty
-    
-instance EmptyError Error where
-    emptyError :: Error
-    emptyError = ParseError ParseEmpty (Source "ergens" 0 0)
+-- instance EmptyError ParseError where
+--     emptyError :: ParseError
+--     emptyError = ParseEmpty
 
-instance EmptyError e => Alternative (Parser i e) where
+-- instance EmptyError Error where
+--     emptyError :: Error
+--     emptyError = ParseError ParseEmpty (Source "ergens" 0 0)
+
+instance ParseError e => Alternative (Parser i e) where
     empty :: Parser i e a
     empty = Parser $ \input -> case input of
-                [] -> Left $ emptyError -- TODO error opnieuw doen
-                                        --TODO dit is eigenlijk Empty error op EOF, dus dat is weer iets extra, 
-                                                                --weet nog steeds niet wanneer deze error precies zou moeten komen,
-                                                                -- als het ooit nuttig is het beter om hier een losse ParseEmptyEOF te maken denk ik
+                -- [] -> Left $ emptyError -- TODO error opnieuw doen
+                --                         --TODO dit is eigenlijk Empty error op EOF, dus dat is weer iets extra,
+                --                                                 --weet nog steeds niet wanneer deze error precies zou moeten komen,
+                --                                                 -- als het ooit nuttig is het beter om hier een losse ParseEmptyEOF te maken denk ik
                 _  -> Left $ emptyError
     (<|>) :: Parser i e a -> Parser i e a -> Parser i e a
     l <|> r = Parser $ \input -> case runParser l input of
@@ -83,13 +80,22 @@ instance EmptyError e => Alternative (Parser i e) where
 
 
 -- | expects predicate function on tokens and String describing what it expects, for error messages
-satisfy :: Show i => (i -> Bool) -> String -> Parser i ParseError i
+satisfy :: (ParseError e, Show i) => (i -> Bool) -> String -> Parser i e i
 satisfy p expects = Parser $ \input ->
         case input of
-            [] -> Left $ ParseUnexpectedEOF expects
+            [] -> Left $ unexpectedError expects "end of tokens"
             (c:xs) -> if p c
                 then Right (c, xs)
-                else Left $ ParseUnexpected (show c) expects
+                else Left $ unexpectedError expects (show c)
+
+-- | expects predicate function on tokens and String describing what it expects, for error messages
+-- satisfy :: Show i => (i -> Bool) -> String -> Parser i ParseError i
+-- satisfy p expects = Parser $ \input ->
+--         case input of
+--             [] -> Left $ ParseUnexpectedEOF expects
+--             (c:xs) -> if p c
+--                 then Right (c, xs)
+--                 else Left $ ParseUnexpected (show c) expects
 
 -- -- expects function on token and String describing what it expects, for error messages
 -- satisfyMap :: (i -> Either ParseError a) -> String -> Parser i a
@@ -101,11 +107,11 @@ satisfy p expects = Parser $ \input ->
 --                 Left e -> Left $ ParseError e pos
 
 
-char :: (Show i, Eq i) => i -> Parser i ParseError i
+char :: (Show i, Eq i, ParseError e) => i -> Parser i e i
 char c = satisfy (==c) (show c)
 
-string :: (Show i, Eq i) => [i] -> Parser i ParseError [i]
-string = traverse char
+-- string :: (Show i, Eq i) => [i] -> Parser i ParseError [i]
+-- string = traverse char
 
 -- any :: Parser i i
 -- any = Parser $ \(rp, input) -> case input of
@@ -136,10 +142,10 @@ between l r p = l *> p <* r
 --                                 Right ((a,pos), rest) -> Right (((a,pos),pos),rest)
 
 
-eof :: Parser i (Source -> Error) ()
-eof = Parser $ \input -> case input of
-                    [] -> Right ((), input)
-                    _ -> Left $ ParseError ParseExpectedEOF
+-- eof :: Parser i (Source -> Error) ()
+-- eof = Parser $ \input -> case input of
+--                     [] -> Right ((), input)
+--                     _ -> Left $ ParseError ParseExpectedEOF
 
 
 --------------------------------------------------------------------------------------------------

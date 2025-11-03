@@ -95,7 +95,17 @@ data Module a = Module {
 
 data HExpr
     = HInt Int
+    | HVar String
+    | HInfixOperator String 
+    | HApply HExpr HExpr 
     deriving (Show)
+
+
+
+data HCExpr
+    = HCInt Int
+    | HCVar String
+    | HCApply HCExpr HCExpr
 
 
 {-

@@ -26,4 +26,6 @@ jobs:
         run: cabal build --only-dependencies
       - name: build
         run: cabal build
+      - name: tests
+        run: cabal test
 #     - name: testen TODO testen toevoegen 

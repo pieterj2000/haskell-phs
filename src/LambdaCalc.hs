@@ -8,23 +8,31 @@ import ExprDef
 -- declToLambda (HDecl name params )
 
 
+astToLambdaCalc :: HExpr -> LambdaCalc
+astToLambdaCalc (HInt x) = Lint x
+
+runLambdaCalc :: LambdaCalc -> DeBruin
+runLambdaCalc = evalDeBruin . lambdaToDeBruin
 
 
 data LambdaCalc
     = Lvar String
     | Llambda String LambdaCalc
     | Lapply LambdaCalc LambdaCalc
+    | Lint Int
 
 data DeBruin
     = Bprim String
     | Bvar Int
     | Blambda DeBruin
     | Bapply DeBruin DeBruin
+    | Bint Int
 
 instance Show LambdaCalc where
   showsPrec p (Lvar s) = showString s
   showsPrec p (Llambda s l) = showParen (p > 0) $ showChar '\\' . showString s . showChar '.' . shows l
   showsPrec p (Lapply a b) = showParen (p > 0) $ showsPrec 1 a . showChar ' ' . showsPrec 1 b
+  showsPrec p (Lint x) = shows x
 
 
 instance Show DeBruin where
@@ -32,6 +40,7 @@ instance Show DeBruin where
   showsPrec p (Bvar i) = showParen (i>9) (shows i)
   showsPrec p (Blambda l) = showParen (p > 0) (showChar '\\' . shows l)
   showsPrec p (Bapply a b) = showParen (p > 0) (showsPrec 1 a . showsPrec 2 b)
+  showsPrec p (Bint x) = shows x
 
 test = Llambda "f" $ Lapply (Llambda "x" $ Lapply (Lvar "x") (Lvar "x")) (Llambda "x" $ Lapply (Lvar "f") $ Lapply (Lvar "x") (Lvar "y"))
 
@@ -43,12 +52,14 @@ lambdaToDeBruin = go []
                                     Nothing -> Bprim x
         go context (Llambda x y) = Blambda $ go (x:context) y
         go context (Lapply x y) = Bapply (go context x) (go context y)
+        go context (Lint x) = Bint x
 
 -- applies b to a lambda term a. Recurses down tree and changes each instance of a with b
 apply :: DeBruin -> DeBruin -> DeBruin
 apply (Blambda a) b = go a 0
     where
         go (Bprim s) _      = Bprim s
+        go (Bint x) _       = Bint x
         go (Bvar i) j       = if i == j then b else Bvar i
         go (Blambda l) j    = Blambda $ go l (j+1)
         go (Bapply f x) j   = Bapply (go f j) (go x j)
