@@ -100,12 +100,10 @@ data HExpr
     | HApply HExpr HExpr 
     deriving (Show)
 
-
-
-data HCExpr
-    = HCInt Int
-    | HCVar String
-    | HCApply HCExpr HCExpr
+-- data HCExpr
+--     = HCInt Int
+--     | HCVar String
+--     | HCApply HCExpr HCExpr
 
 
 {-
