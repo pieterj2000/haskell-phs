@@ -24,13 +24,17 @@ import Utils
 data Token i
     = Tsymbols [i]
     | Tinteger Integer
+    | Tspecialsymb i
     deriving (Show, Eq)
 
 tokenize :: String -> [Token Char]
 tokenize [] = []
 tokenize spul | isDigit (head spul) = let (digits, rest) = span isDigit spul in Tinteger (digitsToInt digits) : tokenize rest
 tokenize spul | isWhiteChar (head spul) = tokenize $ dropWhile isWhiteChar spul
+tokenize (s:rest) | isSpecial s = Tspecialsymb s : tokenize rest
+tokenize spul | isSymbol (head spul) = let (symbols, rest) = span isSymbol spul in Tsymbols symbols : tokenize rest
 tokenize spul = [Tsymbols $ "error: resterende tokens die we niet snappen: '" ++ spul ++ "'"] -- TODO hier fatsoenlijk error maken? Of alleen error (dus crash)
+
 
 
 digitsToInt :: String -> Integer
@@ -50,6 +54,41 @@ isWhiteChar _ = False
 
 
 
+
+isSpecial :: Char -> Bool
+isSpecial '('   = True
+isSpecial ')'   = True
+isSpecial ','   = True
+isSpecial ';'   = True
+isSpecial '['   = True
+isSpecial ']'   = True
+isSpecial '`'   = True
+isSpecial '{'   = True
+isSpecial '}'   = True
+isSpecial _     = False
+
+
+isSymbol :: Char -> Bool
+isSymbol '!'    = True
+isSymbol '#'    = True
+isSymbol '$'    = True
+isSymbol '%'    = True
+isSymbol '&'    = True
+isSymbol '*'    = True
+isSymbol '+'    = True
+isSymbol '.'    = True
+isSymbol '/'    = True
+isSymbol '<'    = True
+isSymbol '='    = True
+isSymbol '>'    = True
+isSymbol '?'    = True
+isSymbol '@'    = True
+isSymbol '\\'   = True
+isSymbol '^'    = True
+isSymbol '|'    = True
+isSymbol '-'    = True
+isSymbol '~'    = True
+isSymbol _      = False
 
 
 
@@ -324,41 +363,6 @@ isWhiteChar _ = False
 
 
 
-
-isSpecial :: Char -> Bool
-isSpecial '('   = True
-isSpecial ')'   = True
-isSpecial ','   = True
-isSpecial ';'   = True
-isSpecial '['   = True
-isSpecial ']'   = True
-isSpecial '`'   = True
-isSpecial '{'   = True
-isSpecial '}'   = True
-isSpecial _     = False
-
-
-isSymbol :: Char -> Bool
-isSymbol '!'    = True
-isSymbol '#'    = True
-isSymbol '$'    = True
-isSymbol '%'    = True
-isSymbol '&'    = True
-isSymbol '*'    = True
-isSymbol '+'    = True
-isSymbol '.'    = True
-isSymbol '/'    = True
-isSymbol '<'    = True
-isSymbol '='    = True
-isSymbol '>'    = True
-isSymbol '?'    = True
-isSymbol '@'    = True
-isSymbol '\\'   = True
-isSymbol '^'    = True
-isSymbol '|'    = True
-isSymbol '-'    = True
-isSymbol '~'    = True
-isSymbol _      = False
 
 -- symbolP :: P.Parser Char Char
 -- symbolP = P.satisfy isSymbol "symbol"
