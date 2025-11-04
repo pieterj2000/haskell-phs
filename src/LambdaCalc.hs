@@ -19,14 +19,14 @@ data LambdaCalc
     = Lvar String
     | Llambda String LambdaCalc
     | Lapply LambdaCalc LambdaCalc
-    | Lint Int
+    | Lint Integer
 
 data DeBruin
     = Bprim String
     | Bvar Int
     | Blambda DeBruin
     | Bapply DeBruin DeBruin
-    | Bint Int
+    | Bint Integer
 
 instance Show LambdaCalc where
   showsPrec p (Lvar s) = showString s

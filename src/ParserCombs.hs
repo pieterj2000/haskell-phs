@@ -1,8 +1,10 @@
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
 module ParserCombs (
     Parser(..),
     -- TParser,
-    char,
+    token,
     ParseError(..),
     parseResult,
     -- token,
@@ -16,12 +18,14 @@ module ParserCombs (
     -- tokens,
     -- tokent,
     -- stoken,
+    getIf,
 ) where
 
 import ExprDef
 import Control.Applicative (Alternative (..))
 import Data.Traversable (traverse)
 import Prelude hiding (any)
+import Data.String (IsString)
 
 -- TODO willen we een [Error] (or misschien difflist in dat geval)?
 -- (Last managed position, input) -> Either (filename -> error) ((outputvalue, in position), (next managed position, rest input))
@@ -30,8 +34,12 @@ import Prelude hiding (any)
 newtype Parser i e a = Parser { runParser :: [i] -> Either e (a, [i]) }
 
 -- TODO error gooien als niet alles geparsed is!
-parseResult :: Parser i e a -> [i] -> Either e a
-parseResult p = (fst <$>) . runParser p
+parseResult :: ParseError i e => Parser i e a -> [i] -> Either e a
+parseResult p input = do
+    (r, rest) <- runParser p input
+    if null rest
+        then Right r
+        else Left $ unconsumedError rest
 
 instance Functor (Parser i e) where
     fmap :: (a -> b) -> Parser i e a -> Parser i e b
@@ -52,10 +60,14 @@ instance Applicative (Parser i e) where
                   Left e            -> Left e
                   Right (x, rest')  -> Right (f x, rest')
 
-class ParseError e where
+-- TODO, moet dit niet geparameteriseerd worden met input type (dus [Token] ipv String)
+class ParseError i e | e -> i where
+    -- | to be used in empty alternative instance
     emptyError :: e
     -- | expected -> got -> e
     unexpectedError :: String -> String -> e
+    -- | unconsumed input -> e
+    unconsumedError :: [i] -> e
 
 -- instance EmptyError ParseError where
 --     emptyError :: ParseError
@@ -65,7 +77,7 @@ class ParseError e where
 --     emptyError :: Error
 --     emptyError = ParseError ParseEmpty (Source "ergens" 0 0)
 
-instance ParseError e => Alternative (Parser i e) where
+instance ParseError i e => Alternative (Parser i e) where
     empty :: Parser i e a
     empty = Parser $ \input -> case input of
                 -- [] -> Left $ emptyError -- TODO error opnieuw doen
@@ -80,13 +92,18 @@ instance ParseError e => Alternative (Parser i e) where
 
 
 -- | expects predicate function on tokens and String describing what it expects, for error messages
-satisfy :: (ParseError e, Show i) => (i -> Bool) -> String -> Parser i e i
-satisfy p expects = Parser $ \input ->
-        case input of
+satisfy :: (ParseError i e, Show i) => (i -> Bool) -> String -> Parser i e i
+satisfy p = getIf (\i -> if p i then Just i else Nothing)
+
+-- | expects function on tokens and String describing what it expects, for error messages
+getIf :: (ParseError i e, Show i) => (i -> Maybe a) -> String -> Parser i e a
+getIf p expects = Parser $ \input ->
+        case input of 
             [] -> Left $ unexpectedError expects "end of tokens"
-            (c:xs) -> if p c
-                then Right (c, xs)
-                else Left $ unexpectedError expects (show c)
+            (c:xs) -> case p c of
+                Just a -> Right (a, xs)
+                Nothing -> Left $ unexpectedError expects (show c)
+
 
 -- | expects predicate function on tokens and String describing what it expects, for error messages
 -- satisfy :: Show i => (i -> Bool) -> String -> Parser i ParseError i
@@ -107,8 +124,8 @@ satisfy p expects = Parser $ \input ->
 --                 Left e -> Left $ ParseError e pos
 
 
-char :: (Show i, Eq i, ParseError e) => i -> Parser i e i
-char c = satisfy (==c) (show c)
+token :: (Show i, Eq i, ParseError i e) => i -> Parser i e i
+token c = satisfy (==c) (show c)
 
 -- string :: (Show i, Eq i) => [i] -> Parser i ParseError [i]
 -- string = traverse char

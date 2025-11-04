@@ -1,9 +1,9 @@
 {-# LANGUAGE InstanceSigs #-}
 module ExprDef
 (
-    Token(..),
+    -- Token(..),
     -- Pos(..),
-    SToken,
+    -- SToken,
     Module(..),
     -- PToken
     Source(..),
@@ -14,45 +14,45 @@ import qualified Data.Map as M
 
 
 -- type PToken = (SToken, Pos)
-type SToken = (Token, String)
+-- type SToken = (Token, String)
 
 
-data Token -- TODO Kijken welke allemaal gebruikt worden, de rest eruit
-    = TSemicolon
-    | TBracketOpen
-    | TBracketClose
-    | TNewLine
-    | TWhiteSpace
-    | TVarid
-    | TVarsym
-    | TConid
-    | TModid
-    | TSpecial
-    | TSpecialOp
-    | TCase
-    | TClass
-    | TData
-    | TDefault
-    | TDeriving
-    | TDo
-    | TElse
-    | TIf
-    | TImport
-    | TIn
-    | TInfix
-    | TInfixl
-    | TInfixr
-    | TInstance
-    | TLet
-    | TModule
-    | TNewtype
-    | TOf
-    | TThen
-    | TType
-    | TWhere
-    | TUnderscore
-    | TTEST -- TODO weghalen
-    deriving (Eq, Show) --TODO Show instatnie zelf
+-- data Token -- TODO Kijken welke allemaal gebruikt worden, de rest eruit
+--     = TSemicolon
+--     | TBracketOpen
+--     | TBracketClose
+--     | TNewLine
+--     | TWhiteSpace
+--     | TVarid
+--     | TVarsym
+--     | TConid
+--     | TModid
+--     | TSpecial
+--     | TSpecialOp
+--     | TCase
+--     | TClass
+--     | TData
+--     | TDefault
+--     | TDeriving
+--     | TDo
+--     | TElse
+--     | TIf
+--     | TImport
+--     | TIn
+--     | TInfix
+--     | TInfixl
+--     | TInfixr
+--     | TInstance
+--     | TLet
+--     | TModule
+--     | TNewtype
+--     | TOf
+--     | TThen
+--     | TType
+--     | TWhere
+--     | TUnderscore
+--     | TTEST -- TODO weghalen
+--     deriving (Eq, Show) --TODO Show instatnie zelf
 
 -- data Pos = Pos {
     -- line :: Int,
@@ -94,7 +94,7 @@ data Module a = Module {
 } deriving (Show) -- TODO show instance
 
 data HExpr
-    = HInt Int
+    = HInt Integer
     | HVar String
     | HInfixOperator String 
     | HApply HExpr HExpr 

@@ -1,4 +1,6 @@
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
 module Parser.Parser
 -- TODO export list
 where
@@ -13,15 +15,18 @@ import Data.Char (isLower, isAlpha, isUpper, isDigit, digitToInt)
 
 import Parser.Lexer
 import Data.Functor (($>))
+import Data.String (IsString)
 
 
 -- TODO fatsoenlijk error
 data Error = Error String
-instance P.ParseError Error where
+instance P.ParseError (Token Char) Error where
   emptyError :: Error
   emptyError = Error "error: empty alternative used"
   unexpectedError :: String -> String -> Error
   unexpectedError expected got = Error ("error, expected " ++ expected ++ ", got " ++ got ++ " instead")
+  unconsumedError :: [Token Char] -> Error
+  unconsumedError rest = Error $ "error, not consumed all input. Remaining: '" ++ (show rest) ++ "'"
 
 instance Show Error where
   show :: Error -> String
@@ -31,37 +36,28 @@ instance Show Error where
 -- addFileLocation file (Error s)
 
 
-type P = P.Parser Char Error
+type P = P.Parser (Token Char) Error
 
 -- TODO filename in error gooien
 parseFile :: String -> String -> Either Error HExpr
-parseFile filename = P.parseResult integerExpr
+parseFile filename = P.parseResult integerExpr . tokenize
 
 -- TODO moet eigenlijk vertaald worden naar 'fromInteger 12345', of 'negate (fromInteger 12345)' als het om -x gaat
 integerExpr :: P HExpr
 integerExpr = HInt <$> signedinteger
 
-signedinteger :: P Int
+signedinteger :: P Integer
 signedinteger = ( ((-1)*) <$> (minus *> integer) ) <|> integer
 
 -- TODO dit moet uiteindelijk P.symbol of zo zijn, die specifiek een symbol token eist.
 minus :: P ()
-minus = P.char '-' $> ()
+minus = P.token (Tsymbols "-") $> ()
 
--- TODO Int moet eigenlijk Integer zijn
-integer :: P Int
-integer = foldl' (\acc el -> acc*10 + el) 0 <$> digits
-
-digits :: P [Int]
-digits = some digit
-
-digit :: P Int
-digit = digitToInt <$> P.satisfy isDigit "digit"
-
-
-
-
-
+integer :: P Integer
+integer = P.getIf (\t -> case t of
+                            (Tinteger x) -> Just x
+                            _ -> Nothing
+                    ) "integer token"
 
 
 -- -- TODO, lhs moet beter worden gedaan
