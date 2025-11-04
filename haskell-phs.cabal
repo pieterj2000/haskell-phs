@@ -91,11 +91,13 @@ executable phs
     autogen-modules:
 
     -- Modules included in this executable, other than Main.
+    -- TODO opschonen
     other-modules:
         Data.Map
         Parser.Parser
         Parser.Lexer.Layout
         Parser.Lexer
+        Parser.Fixity
         Parser.Module
         Error
         ExprDef

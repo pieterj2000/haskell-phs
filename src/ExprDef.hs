@@ -8,7 +8,8 @@ module ExprDef
     -- PToken
     Source(..),
     WithSource(..),
-    HExpr (..)
+    HExpr (..),
+    VarInfo(..)
 ) where
 import qualified Data.Map as M
 
@@ -96,9 +97,20 @@ data Module a = Module {
 data HExpr
     = HInt Integer
     | HVar String
-    | HInfixOperator String 
+    -- | dit is uitsluitend voor reeksen infix operators waar fixity nog niet voor is bepaald! Anders moet het gewoon HVar gebruiken
+    | HInfixOp String 
+    -- | dit is uitsluitend voor reeksen infix operators waar fixity nog niet voor is bepaald! Anders moet het gewoon HApply gebruiken
+    | HInfixExpr [HExpr]
     | HApply HExpr HExpr 
     deriving (Show)
+
+
+data VarInfo 
+    = Fixity FixityType Int
+
+data FixityType = InfixL | InfixR | InfixN
+
+
 
 -- data HCExpr
 --     = HCInt Int

@@ -1,6 +1,4 @@
 {-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FunctionalDependencies #-}
 module ParserCombs (
     Parser(..),
     -- TParser,
@@ -26,6 +24,8 @@ import Control.Applicative (Alternative (..))
 import Data.Traversable (traverse)
 import Prelude hiding (any)
 import Data.String (IsString)
+
+import Error
 
 -- TODO willen we een [Error] (or misschien difflist in dat geval)?
 -- (Last managed position, input) -> Either (filename -> error) ((outputvalue, in position), (next managed position, rest input))
@@ -60,14 +60,6 @@ instance Applicative (Parser i e) where
                   Left e            -> Left e
                   Right (x, rest')  -> Right (f x, rest')
 
--- TODO, moet dit niet geparameteriseerd worden met input type (dus [Token] ipv String)
-class ParseError i e | e -> i where
-    -- | to be used in empty alternative instance
-    emptyError :: e
-    -- | expected -> got -> e
-    unexpectedError :: String -> String -> e
-    -- | unconsumed input -> e
-    unconsumedError :: [i] -> e
 
 -- instance EmptyError ParseError where
 --     emptyError :: ParseError

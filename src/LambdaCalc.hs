@@ -10,6 +10,10 @@ import ExprDef
 
 astToLambdaCalc :: HExpr -> LambdaCalc
 astToLambdaCalc (HInt x) = Lint x
+astToLambdaCalc (HVar x) = Lvar x
+-- TODO deze kijken of we die type-safe kunenn maken, ipv error
+astToLambdaCalc (HInfixExpr _) = error "deze zou niet meer voor moeten komen"
+astToLambdaCalc (HApply f x) = Lapply (astToLambdaCalc f) (astToLambdaCalc x)
 
 runLambdaCalc :: LambdaCalc -> DeBruin
 runLambdaCalc = evalDeBruin . lambdaToDeBruin

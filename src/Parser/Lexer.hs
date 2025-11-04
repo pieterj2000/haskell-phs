@@ -10,12 +10,10 @@ module Parser.Lexer (
 ) where
 
 import ExprDef
-import qualified ParserCombs as P
 
 import Data.Char (isAlphaNum, isUpper, isLower, isDigit, digitToInt)
 import Control.Applicative (many, Alternative ((<|>), some), optional)
 import Data.Functor (($>))
-import Error ( ParseError (..), Error (ParseError))
 import Utils
 
 
@@ -387,21 +385,6 @@ isSymbol _      = False
 --                     <$> symbolP
 --                     <*> many (symbolP <|> P.char ':')
 --                 )
-
-isReservedOp :: String -> Bool
-isReservedOp ".."   = True
-isReservedOp ":"   = True
-isReservedOp "::"   = True
-isReservedOp "="   = True
-isReservedOp "\\"   = True
-isReservedOp "|"   = True
-isReservedOp "<-"   = True
-isReservedOp "->"   = True
-isReservedOp "@"   = True
-isReservedOp "~"   = True
-isReservedOp "=>"   = True
-isReservedOp _      = False
-
 
 
 -- smallP :: P.Parser Char Char

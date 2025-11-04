@@ -7,6 +7,8 @@ import Parser.Lexer
 import ExprDef (Module(..))
 import LambdaCalc
 import Parser.Parser
+import Parser.Fixity
+import System.Exit (exitFailure)
 
 
 main :: IO ()
@@ -25,13 +27,17 @@ main = do
                     printv x = if (length rest > 0 && head rest == "interpreterteststand") then pure () else print x
                 --print textpos
                 case mast of 
-                    (Left e) -> print e
-                    (Right ast) -> do
-                        let lcast = astToLambdaCalc ast
-                            result = runLambdaCalc lcast
-                        printv ast
-                        printv lcast
-                        print result
+                    (Left e) -> print e >> exitFailure
+                    (Right ast) -> 
+                        let varinfo = [] -- TODO 
+                        in printv ast >> case solveFixity varinfo ast of
+                        (Left e) -> print e >> exitFailure
+                        (Right fast) -> do
+                            let lcast = astToLambdaCalc fast
+                                result = runLambdaCalc lcast
+                            printv ast
+                            printv lcast
+                            print result
                 
     -- print test
     -- print $ lambdaToDeBruin test
