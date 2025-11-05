@@ -4,11 +4,18 @@ import System.Environment (getArgs)
 
 import Parser.Module
 import Parser.Lexer 
-import ExprDef (Module(..))
+import ExprDef (Module(..), VarInfo (..), FixityType (..))
 import LambdaCalc
 import Parser.Parser
 import Parser.Fixity
 import System.Exit (exitFailure)
+
+
+varinfoDefault :: [(String, VarInfo)]
+varinfoDefault = [
+        ("(-)", VarInfo InfixL 6),
+        ("(+)", VarInfo InfixL 6)
+    ]
 
 
 main :: IO ()
@@ -29,15 +36,15 @@ main = do
                 case mast of 
                     (Left e) -> print e >> exitFailure
                     (Right ast) -> 
-                        let varinfo = [] -- TODO 
+                        let varinfo = varinfoDefault -- TODO 
                         in printv ast >> case solveFixity varinfo ast of
-                        (Left e) -> print e >> exitFailure
-                        (Right fast) -> do
-                            let lcast = astToLambdaCalc fast
-                                result = runLambdaCalc lcast
-                            printv ast
-                            printv lcast
-                            print result
+                            (Left e) -> print e >> exitFailure
+                            (Right fast) -> do
+                                let lcast = astToLambdaCalc fast
+                                    result = runLambdaCalc lcast
+                                printv fast
+                                printv lcast
+                                print result
                 
     -- print test
     -- print $ lambdaToDeBruin test

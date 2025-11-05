@@ -71,7 +71,7 @@ varident = undefined
 -- | returns the varsymbol already enclosed in braces, i.e. reads ++ as (++)
 varsymbol :: P HExpr
 varsymbol = P.getIf (\t -> case t of
-    (Tsymbols s) -> if isReservedOp s then Nothing else Just $ HInfixOp s
+    (Tsymbols s) -> if isReservedOp s then Nothing else Just $ HInfixOp $ "(" ++ s ++ ")"
     _ -> Nothing) "(infix) operator consisting of symbols"
 
 
@@ -89,8 +89,8 @@ unitaryMinusOp :: P HExpr
 unitaryMinusOp = minus *> ( prependInfixOp <$> infixExpression)
     where 
         prependInfixOp :: HExpr -> HExpr
-        prependInfixOp (HInfixExpr rest) = HInfixExpr $ (HInfixOp "-") : rest
-        prependInfixOp anders = HInfixExpr $ [HInfixOp "-", anders]
+        prependInfixOp (HInfixExpr rest) = HInfixExpr $ (HInfixOp "(-)") : rest
+        prependInfixOp anders = HInfixExpr $ [HInfixOp "(-)", anders]
 
 -- TODO weghalen, en alleen na de fixitycheck pas uitten...
 minus :: P ()

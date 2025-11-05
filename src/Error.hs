@@ -18,6 +18,7 @@ class ParseError i e | e -> i where
     unexpectedError :: String -> String -> e
     -- | unconsumed input -> e
     unconsumedError :: [i] -> e
+    fixityError :: e
 
 
 

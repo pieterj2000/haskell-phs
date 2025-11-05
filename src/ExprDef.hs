@@ -9,7 +9,8 @@ module ExprDef
     Source(..),
     WithSource(..),
     HExpr (..),
-    VarInfo(..)
+    VarInfo(..),
+    FixityType(..)
 ) where
 import qualified Data.Map as M
 
@@ -105,10 +106,12 @@ data HExpr
     deriving (Show)
 
 
-data VarInfo 
-    = Fixity FixityType Int
+data VarInfo = VarInfo {
+    varFixity :: FixityType,
+    varFixityPrecedence :: Int
+}
 
-data FixityType = InfixL | InfixR | InfixN
+data FixityType = InfixL | InfixR | InfixN deriving (Show, Eq)
 
 
 

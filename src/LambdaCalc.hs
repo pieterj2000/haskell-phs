@@ -31,7 +31,7 @@ data DeBruin
     | Blambda DeBruin
     | Bapply DeBruin DeBruin
     | Bint Integer
-
+    
 instance Show LambdaCalc where
   showsPrec p (Lvar s) = showString s
   showsPrec p (Llambda s l) = showParen (p > 0) $ showChar '\\' . showString s . showChar '.' . shows l
@@ -73,8 +73,13 @@ apply _ _ = error "applying to something different than a lambda"
 -- evals de bruin naively, i.e. no sharing
 evalDeBruin :: DeBruin -> DeBruin
 evalDeBruin (Bapply (Blambda l) x) = evalDeBruin $ apply (Blambda l) x
+evalDeBruin ding@(Bapply (Bprim _) x) = applyprimitieve ding
 evalDeBruin other = other
 
+
+applyprimitieve :: DeBruin -> DeBruin
+applyprimitieve (Bapply (Bprim "negate") (Bint x)) = Bint (-x)
+applyprimitieve x = x
 
 
 {-
