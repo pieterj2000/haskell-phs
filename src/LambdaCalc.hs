@@ -31,6 +31,7 @@ data DeBruin
     | Blambda DeBruin
     | Bapply DeBruin DeBruin
     | Bint Integer
+    deriving(Show)
     
 instance Show LambdaCalc where
   showsPrec p (Lvar s) = showString s
@@ -39,12 +40,15 @@ instance Show LambdaCalc where
   showsPrec p (Lint x) = shows x
 
 
-instance Show DeBruin where
-  showsPrec p (Bprim s) = (if p > 1 then (' ':) else id) . showString s
-  showsPrec p (Bvar i) = showParen (i>9) (shows i)
-  showsPrec p (Blambda l) = showParen (p > 0) (showChar '\\' . shows l)
-  showsPrec p (Bapply a b) = showParen (p > 0) (showsPrec 1 a . showsPrec 2 b)
-  showsPrec p (Bint x) = shows x
+-- instance Show DeBruin where
+showprettyDeBruin :: DeBruin -> String
+showprettyDeBruin = ($ "") . showprettyDeBruin' 0
+showprettyDeBruin' :: Int -> DeBruin -> (String -> String)
+showprettyDeBruin' p (Bprim s) = (if p > 1 then (' ':) else id) . showString s
+showprettyDeBruin' p (Bvar i) = showParen (i>9) (shows i)
+showprettyDeBruin' p (Blambda l) = showParen (p > 0) (showChar '\\' . shows l)
+showprettyDeBruin' p (Bapply a b) = showParen (p > 0) (showprettyDeBruin' 1 a . showprettyDeBruin' 2 b)
+showprettyDeBruin' p (Bint x) = shows x
 
 test = Llambda "f" $ Lapply (Llambda "x" $ Lapply (Lvar "x") (Lvar "x")) (Llambda "x" $ Lapply (Lvar "f") $ Lapply (Lvar "x") (Lvar "y"))
 
@@ -59,27 +63,70 @@ lambdaToDeBruin = go []
         go context (Lint x) = Bint x
 
 -- applies b to a lambda term a. Recurses down tree and changes each instance of a with b
-apply :: DeBruin -> DeBruin -> DeBruin
-apply (Blambda a) b = go a 0
+applyToLambda :: DeBruin -> DeBruin -> DeBruin
+applyToLambda (Blambda a) b = go a 0
     where
         go (Bprim s) _      = Bprim s
         go (Bint x) _       = Bint x
         go (Bvar i) j       = if i == j then b else Bvar i
         go (Blambda l) j    = Blambda $ go l (j+1)
         go (Bapply f x) j   = Bapply (go f j) (go x j)
-apply _ _ = error "applying to something different than a lambda"
+applyToLambda _ _ = error "applying to something different than a lambda"
 
+evalDeBruin :: DeBruin -> DeBruin
+evalDeBruin = fromSpine . evalDeBruin' . makeSpine
+
+-- is in de vorm van [linksonder aan top spine, rechtsonder aan top spine, rechtsonder aan (top-1) spine, ...]
+makeSpine :: DeBruin -> [DeBruin]
+makeSpine = reverse . go
+    where
+        go (Bapply f x) = x : (go f)
+        go anders = [anders] -- We stoppen de linker node van de laatste application op het begin
+
+fromSpine :: [DeBruin] -> DeBruin
+fromSpine [] = error "zou niet moeten gebeuren"
+fromSpine (eerste:daarna) = go eerste daarna
+    where 
+        go links [] = links
+        go links (rechts:rest) = go (Bapply links rechts) rest
 
 -- evals de bruin naively, i.e. no sharing
-evalDeBruin :: DeBruin -> DeBruin
-evalDeBruin (Bapply (Blambda l) x) = evalDeBruin $ apply (Blambda l) x
-evalDeBruin ding@(Bapply (Bprim _) x) = applyprimitieve ding
-evalDeBruin other = other
+evalDeBruin' :: [DeBruin] -> [DeBruin]
+evalDeBruin' [] = error "empty ding zou niet moeten kunnen"
+evalDeBruin' [x] = [x] -- Dit zou niet een apply moeten kunnen zijn
+evalDeBruin' (Blambda l : x : rest) = evalDeBruin' $ (applyToLambda l x) : rest
+evalDeBruin' alles@(Bprim p : rest) = case lookup p primitives of
+        Nothing -> error $ "undefined primitive '" ++ p ++ "'" -- TODO fatsoenlijke error maken, of iets mee doen
+        Just (arity, fun) ->
+            let (params, overig) = splitAt arity rest
+                paramsNormalized = map evalDeBruin params
+                isInt (Bint _) = True -- TODO deze check moet veranderen als we ook primitieve voor andere types hebben. 
+                                        -- misschien in de primitives lijst een eigen checkfunctie voor iedere primitive?
+                isInt _ = False
+                fromInt (Bint x) = x
+            in if all isInt paramsNormalized
+                then evalDeBruin' $ Bint (fun $ fromInt <$> paramsNormalized) : overig
+                else alles
+evalDeBruin' other = error $ "een application van niet application-bare dingen: " ++ show other
 
 
-applyprimitieve :: DeBruin -> DeBruin
-applyprimitieve (Bapply (Bprim "negate") (Bint x)) = Bint (-x)
-applyprimitieve x = x
+primitives :: [(String, (Int, [Integer] -> Integer))]
+primitives = let (-->) = (,) in
+    [ "negate" --> (1, head . fmap negate)
+    , "(+)" --> (2, sum)
+    , "(-)" --> (2, \[a,b] -> a-b)
+    ]
+
+
+
+-- applyToPrimitieve :: DeBruin -> [DeBruin] -> DeBruin
+-- applyToPrimitieve (Bapply (Bprim "negate") (Bint x)) = Bint (-x)
+-- applyToPrimitieve (Bapply (Bprim "negate") x) = applyprimitieve (Bapply (Bprim "negate") (evalDeBruin x))
+-- applyToPrimitieve (Bapply (Bapply (Bprim "(+)") (Bint x)) (Bint y)) = Bint (x+y)
+-- applyToPrimitieve (Bapply (Bapply (Bprim "(+)") x) y) = applyprimitieve (Bapply (Bapply (Bprim "(+)") (evalDeBruin x)) (evalDeBruin y))
+-- applyToPrimitieve (Bapply (Bapply (Bprim "(-)") (Bint x)) (Bint y)) = Bint (x-y)
+-- applyToPrimitieve (Bapply (Bapply (Bprim "(-)") x) y) = applyprimitieve (Bapply (Bapply (Bprim "(-)") (evalDeBruin x)) (evalDeBruin y))
+-- applyToPrimitieve x = x
 
 
 {-

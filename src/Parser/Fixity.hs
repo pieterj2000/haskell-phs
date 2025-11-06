@@ -22,7 +22,7 @@ getFixity = varFixity . fromJust .: flip lookup
 checknegatives :: [(String, VarInfo)] -> [HExpr] -> Maybe Error
 checknegatives _ [] = Nothing
 checknegatives _ [_] = Nothing
-checknegatives opinfo (HInfixOp l : HInfixOp "-" : rest) =
+checknegatives opinfo (HInfixOp l : HInfixOp "(-)" : rest) =
     let lprec = getPrec opinfo l
         nprec = getPrec opinfo "(-)"
     in if lprec < nprec 

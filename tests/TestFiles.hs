@@ -7,13 +7,14 @@ import Data.Maybe (isNothing, fromJust)
 import Prelude hiding (fail)
 
 -- TODO gebruik detailed test manier: https://cabal.readthedocs.io/en/stable/cabal-package-description-file.html#example-package-using-detailed-0-9-interface
-tests = [
-    ("integer1.hs", Just 1),
-    ("integerneg1.hs", Just $ -1),
-    ("integerneg2.hs", Just $ -1333),
-    ("minusfixity1.hs", Just 1),
-    ("minusfixity2.hs", Nothing),
-    ("minusfixity3.hs", Just $ -1)
+tests = 
+    [ ("integer1.hs", Just 1)
+    , ("integerneg1.hs", Just $ -1)
+    , ("integerneg2.hs", Just $ -1333)
+    , ("minusfixity1.hs", Just 1)
+    , ("minusfixity2.hs", Nothing)
+    , ("minusfixity3.hs", Just $ -1)
+    , ("fixity1.hs", Just $ -4)
     ]
 
 doeTest :: Show a => (String, Maybe a) -> IO Bool
@@ -26,7 +27,8 @@ doeTest (filename, result) = do
     exitcode <- waitForProcess process_handle 
     let verwacht = show $ fromJust result
         verwachtcrash = isNothing result
-        r   | (verwachtcrash && exitcode /= ExitSuccess) = fail "error" output
+        r   | (verwachtcrash && exitcode /= ExitSuccess) = success
+            | (verwachtcrash && exitcode == ExitSuccess) = fail "error" output
             | (output /= verwacht) = fail verwacht output
             | otherwise = success
     r

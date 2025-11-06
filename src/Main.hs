@@ -44,7 +44,8 @@ main = do
                                     result = runLambdaCalc lcast
                                 printv fast
                                 printv lcast
-                                print result
+                                printv result
+                                putStrLn $ showprettyDeBruin result
                 
     -- print test
     -- print $ lambdaToDeBruin test
