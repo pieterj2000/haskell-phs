@@ -102,8 +102,14 @@ data HExpr
     | HInfixOp String 
     -- | dit is uitsluitend voor reeksen infix operators waar fixity nog niet voor is bepaald! Anders moet het gewoon HApply gebruiken
     | HInfixExpr [HExpr]
+    -- | dit is uitsluitend voor voor de correctheid van reeksen infixexpressions, dit zou niet later voor moeten komen
+    | HInfixParentheses HExpr
     | HApply HExpr HExpr 
     deriving (Show)
+
+
+-- traverseHExpr :: Applicative f => (HExpr -> f HExpr) -> HExpr -> f HExpr
+-- traverseHExpr f ()
 
 
 data VarInfo = VarInfo {

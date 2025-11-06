@@ -2,6 +2,9 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
 module Parser.Parser
+(
+ parseFile
+)
 -- TODO export list
 where
 
@@ -53,7 +56,22 @@ combineInfixExpr lexpr _ _ = error "combineInfixExpr, krijg andere parsings dan 
 
 
 leftExpression :: P HExpr
-leftExpression = integerExpr
+leftExpression
+    = functionapplicationexpression
+
+
+functionapplicationexpression :: P HExpr
+functionapplicationexpression = 
+    let f [x] = x
+        f (x:y:xs) = f $ (HApply x y) : xs
+        f [] = error "zou niet moeten kunnen" 
+    in f <$> some algemeneexpression
+
+algemeneexpression :: P HExpr
+algemeneexpression
+    =   integerExpr
+    <|> ( HInfixParentheses <$> P.between (P.token $ Tspecialsymb '(') (P.token $ Tspecialsymb ')') infixExpression )
+
 
 -- TODO qualified maken
 infixOp :: P HExpr
@@ -81,9 +99,6 @@ varsymbol = P.getIf (\t -> case t of
 integerExpr :: P HExpr
 integerExpr = HInt <$> integer
 
-signedinteger :: P Integer
-signedinteger = ( ((-1)*) <$> (minus *> integer) ) <|> integer
-
 
 unitaryMinusOp :: P HExpr
 unitaryMinusOp = minus *> ( prependInfixOp <$> infixExpression)
@@ -92,7 +107,6 @@ unitaryMinusOp = minus *> ( prependInfixOp <$> infixExpression)
         prependInfixOp (HInfixExpr rest) = HInfixExpr $ (HInfixOp "(-)") : rest
         prependInfixOp anders = HInfixExpr $ [HInfixOp "(-)", anders]
 
--- TODO weghalen, en alleen na de fixitycheck pas uitten...
 minus :: P ()
 minus = P.token (Tsymbols "-") $> ()
 

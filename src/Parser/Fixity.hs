@@ -8,10 +8,15 @@ import Data.Maybe (fromJust, isJust)
 import Utils
 
 solveFixity :: [(String, VarInfo)] -> HExpr -> Either Error HExpr
-solveFixity info (HInfixExpr xs) = case checknegatives info xs of
+solveFixity info (HInfixExpr xs) = solveFixityEen info xs >>= solveFixity info
+solveFixity info (HApply l r) = HApply <$> solveFixity info l <*> solveFixity info r
+solveFixity info (HInfixParentheses inner) = solveFixity info inner
+solveFixity _ x = Right x
+
+solveFixityEen :: [(String, VarInfo)] -> [HExpr] -> Either Error HExpr
+solveFixityEen info xs = case checknegatives info xs of
     Nothing -> parse info xs
     Just e -> Left e
-solveFixity _ x = Right x
 
 
 getPrec :: [(String, VarInfo)] -> String -> Int

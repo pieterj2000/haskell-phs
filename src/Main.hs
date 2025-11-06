@@ -12,9 +12,10 @@ import System.Exit (exitFailure)
 
 
 varinfoDefault :: [(String, VarInfo)]
-varinfoDefault = [
-        ("(-)", VarInfo InfixL 6),
-        ("(+)", VarInfo InfixL 6)
+varinfoDefault = 
+    [ ("(-)", VarInfo InfixL 6)
+    , ("(+)", VarInfo InfixL 6)
+    , ("(*)", VarInfo InfixL 7)
     ]
 
 
