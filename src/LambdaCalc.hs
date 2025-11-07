@@ -94,7 +94,7 @@ applyToLambda (Blambda a) b = go a 0
         go (Bvar i) j       = if i == j then b else Bvar i
         go (Blambda l) j    = Blambda $ go l (j+1)
         go (Bapply f x) j   = Bapply (go f j) (go x j)
-applyToLambda _ _ = error "applying to something different than a lambda"
+applyToLambda f x = error $ "applying to something different than a lambda. Applying: '" ++ show f ++ "' with '" ++ show x ++ "'"
 
 evalDeBruin :: DeBruin -> DeBruin
 evalDeBruin = fromSpine . evalDeBruin' . makeSpine
@@ -116,8 +116,11 @@ fromSpine (eerste:daarna) = go eerste daarna
 -- evals de bruin naively, i.e. no sharing
 evalDeBruin' :: [DeBruin] -> [DeBruin]
 evalDeBruin' [] = error "empty ding zou niet moeten kunnen"
-evalDeBruin' [x] = [x] -- Dit zou niet een apply moeten kunnen zijn
-evalDeBruin' (Blambda l : x : rest) = evalDeBruin' $ (applyToLambda l x) : rest
+-- Het zou een apply kunnen zijn na de application van een lambda abstraction
+evalDeBruin' [Bapply f x] = evalDeBruin' $ makeSpine (Bapply f x)
+-- anders kunnen we het niet oplossen :)
+evalDeBruin' [x] = [x] 
+evalDeBruin' (Blambda l : x : rest) = evalDeBruin' $ (applyToLambda (Blambda l) x) : rest
 evalDeBruin' alles@(Bprim p : rest) = case lookup p primitives of
         Nothing -> error $ "undefined primitive '" ++ p ++ "'" -- TODO fatsoenlijke error maken, of iets mee doen
         Just (arity, fun) ->

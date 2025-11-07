@@ -17,6 +17,7 @@ module ParserCombs (
     -- tokent,
     -- stoken,
     getIf,
+    someSep,
 ) where
 
 import ExprDef
@@ -137,6 +138,10 @@ between l r p = l *> p <* r
 --                     in Left $ ParseError enew pos  --Todo is niet type safe in dat het ook een andere error dan parseerror zou kunnen zijn, maar dat zou
 --                                                                 -- niet moeten kunnen voorkomen op dit punt
 --         Right x -> Right x
+
+
+someSep :: ParseError i e => Parser i e a -> Parser i e () -> Parser i e [a]
+someSep ding sep = (:) <$> ding <*> ( (sep *> someSep ding sep) <|> pure [] )
 
 
 -- some' :: Parser i a -> Parser i [(a, Pos)]

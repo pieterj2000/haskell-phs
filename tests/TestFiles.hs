@@ -3,7 +3,8 @@ module Main where
 import System.Exit
 import System.Process
 import System.IO (hShow, hGetContents')
-import Data.Maybe (isNothing, fromJust)
+import System.Directory
+import Data.Maybe (isNothing, fromJust, isJust)
 import Prelude hiding (fail)
 
 -- TODO gebruik detailed test manier: https://cabal.readthedocs.io/en/stable/cabal-package-description-file.html#example-package-using-detailed-0-9-interface
@@ -46,8 +47,24 @@ fail verwacht kreeg = do
     return False
 
 
+checkAllTests :: IO ()
+checkAllTests = do
+    files <- listDirectory "tests/instances"
+    print files
+    let missingtests = filter (isNothing . flip lookup tests) files
+    if null missingtests
+        then return ()
+        else do
+            putStrLn "WARNING: Er zijn testbestanden waar geen tests voor zijn..., het gaat om:" 
+            traverse print missingtests
+            exitFailure
+
+
+
+
 main :: IO ()
 main = do
+    checkAllTests
     resultaten <- traverse doeTest tests
     if and resultaten
         then putStrLn "alle tests gelukt"

@@ -29,8 +29,13 @@ type P = P.Parser (Token Char) Error
 
 -- TODO filename in error gooien
 parseFile :: String -> String -> Either Error [HDecl HExpr]
-parseFile filename = fmap singleton . P.parseResult decl . tokenize
+parseFile filename = P.parseResult topdecls . tokenize
 
+topdecls :: P [HDecl HExpr]
+topdecls = P.someSep topdecl (P.token (Tspecialsymb ';') *> pure ())
+
+topdecl :: P (HDecl HExpr)
+topdecl = decl
 
 decl :: P (HDecl HExpr)
 decl =
@@ -79,6 +84,7 @@ functionapplicationexpression =
 algemeneexpression :: P HExpr
 algemeneexpression
     =   integerExpr
+    <|> varident
     <|> ( HInfixParentheses <$> P.between (P.token $ Tspecialsymb '(') (P.token $ Tspecialsymb ')') infixExpression )
 
 

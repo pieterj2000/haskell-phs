@@ -78,7 +78,8 @@ test-suite test-files
     hs-source-dirs: tests/
     build-depends: 
         base,
-        process
+        process,
+        directory
 
 
 executable phs

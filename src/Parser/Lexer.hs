@@ -32,8 +32,12 @@ tokenize [] = []
 -- Integer
 tokenize spul | isDigit (head spul) = let (digits, rest) = span isDigit spul in Tinteger (digitsToInt digits) : tokenize rest
 
+-- Newline -- TODO layout fixen
+tokenize spul | isnewline = Tspecialsymb ';' : tokenize rest
+    where (isnewline, rest) = isNewLine spul
+
 -- Whitespace
-tokenize spul | isWhiteChar (head spul) = tokenize $ dropWhile isWhiteChar spul
+tokenize spul | isWhiteCharNoNewLine (head spul) = tokenize $ dropWhile isWhiteCharNoNewLine spul
 
 -- Symbols (and special symbols)
 tokenize (s:rest) | isSpecial s = Tspecialsymb s : tokenize rest
@@ -53,6 +57,14 @@ digitsToInt :: String -> Integer
 digitsToInt = foldl' (\acc el -> acc*10 + toInteger el) 0 . map digitToInt
 
 
+isNewLine :: String -> (Bool, String)
+isNewLine ('\r' : '\n' : rest) = (True, rest)
+isNewLine ('\r' : rest) = (True, rest)
+isNewLine ('\f' : rest) = (True, rest)
+isNewLine ('\n' : rest) = (True, rest)
+isNewLine rest = (False, rest)
+
+
 isWhiteChar :: Char -> Bool
 isWhiteChar '\n' = True
 isWhiteChar '\v' = True
@@ -61,6 +73,12 @@ isWhiteChar '\t' = True
 isWhiteChar '\r' = True
 isWhiteChar '\f' = True
 isWhiteChar _ = False
+
+isWhiteCharNoNewLine :: Char -> Bool
+isWhiteCharNoNewLine '\v' = True
+isWhiteCharNoNewLine ' ' = True
+isWhiteCharNoNewLine '\t' = True
+isWhiteCharNoNewLine _ = False
 
 
 

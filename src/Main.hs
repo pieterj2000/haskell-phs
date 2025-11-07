@@ -32,20 +32,24 @@ main = do
                     mast = parseFile inputfile input
                 
                     -- TODO dit mag beter
-                    printv x = if (length rest > 0 && head rest == "interpreterteststand") then pure () else print x
+                    printv wat x = if (length rest > 0 && head rest == "interpreterteststand") then pure () else putStr (wat ++ ":\t") >> print x
                 --print textpos
+                printv "input" $ input
+                printv "tokens" $ tokenize input
                 case mast of 
                     (Left e) -> print e >> exitFailure
                     (Right ast) -> 
                         let varinfo = varinfoDefault -- TODO 
-                        in printv ast >> case solveFixity varinfo ast of
+                        in printv "ast" ast >> case solveFixity varinfo ast of
                             (Left e) -> print e >> exitFailure
                             (Right fast) -> do
                                 let lcast = astToLambdaCalc varinfo fast
+                                    lcastbruin = lambdaToDeBruin lcast
                                     result = runLambdaCalc lcast
-                                printv fast
-                                printv lcast
-                                printv result
+                                printv "ast na fixity" fast
+                                printv "lambdacalc ast" lcast
+                                printv "debruin ast" lcastbruin
+                                printv "resultaat" result
                                 putStrLn $ showprettyDeBruin result
                 
     -- print test
