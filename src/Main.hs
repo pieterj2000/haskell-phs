@@ -4,18 +4,18 @@ import System.Environment (getArgs)
 
 import Parser.Module
 import Parser.Lexer 
-import ExprDef (Module(..), VarInfo (..), FixityType (..))
+import ExprDef (Module(..), VarInfo (..), FixityType (..), VarStore)
 import LambdaCalc
 import Parser.Parser
 import Parser.Fixity
 import System.Exit (exitFailure)
 
 
-varinfoDefault :: [(String, VarInfo)]
-varinfoDefault = 
-    [ ("(-)", VarInfo InfixL 6)
-    , ("(+)", VarInfo InfixL 6)
-    , ("(*)", VarInfo InfixL 7)
+varinfoDefault :: VarStore
+varinfoDefault = let (-->) = (,) in
+    [ "(-)" --> VarInfo InfixL 6 Nothing
+    , "(+)" --> VarInfo InfixL 6 Nothing
+    , "(*)" --> VarInfo InfixL 7 Nothing
     ]
 
 
@@ -41,7 +41,7 @@ main = do
                         in printv ast >> case solveFixity varinfo ast of
                             (Left e) -> print e >> exitFailure
                             (Right fast) -> do
-                                let lcast = astToLambdaCalc fast
+                                let lcast = astToLambdaCalc varinfo fast
                                     result = runLambdaCalc lcast
                                 printv fast
                                 printv lcast

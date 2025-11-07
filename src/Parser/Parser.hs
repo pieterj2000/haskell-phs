@@ -21,14 +21,23 @@ import Data.Functor (($>))
 import Parser.Fixity
 
 import Error
+import Data.List (singleton)
 
 
 
 type P = P.Parser (Token Char) Error
 
 -- TODO filename in error gooien
-parseFile :: String -> String -> Either Error HExpr
-parseFile filename = P.parseResult infixExpression . tokenize
+parseFile :: String -> String -> Either Error [HDecl HExpr]
+parseFile filename = fmap singleton . P.parseResult decl . tokenize
+
+
+decl :: P (HDecl HExpr)
+decl =
+    let f [x] e = HDecl x [] e
+        f (y:ys) e = HDecl y ys e
+    in f <$> some varidentString <*> (P.token (Tsymbols "=") *> infixExpression) 
+
 
 
 infixExpression :: P HExpr
@@ -83,8 +92,14 @@ varidentInfix =
         f _ = error "zou niet moeten gebeuren"
     in f <$> (P.token (Tspecialsymb '`') *> varident <* P.token (Tspecialsymb '`'))
 
+-- TODO qualified maken
 varident :: P HExpr
-varident = undefined
+varident = HVar <$> varidentString
+
+varidentString :: P String
+varidentString = P.getIf (\t -> case t of
+    (Tvarid s) -> if isReservedOp s then Nothing else Just s
+    _ -> Nothing) "varid"
 
 -- | returns the varsymbol already enclosed in braces, i.e. reads ++ as (++)
 varsymbol :: P HExpr

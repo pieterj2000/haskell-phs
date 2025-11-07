@@ -23,17 +23,31 @@ data Token i
     = Tsymbols [i]
     | Tinteger Integer
     | Tspecialsymb i
+    | Tvarid String
     deriving (Show, Eq)
 
 tokenize :: String -> [Token Char]
 tokenize [] = []
+
+-- Integer
 tokenize spul | isDigit (head spul) = let (digits, rest) = span isDigit spul in Tinteger (digitsToInt digits) : tokenize rest
+
+-- Whitespace
 tokenize spul | isWhiteChar (head spul) = tokenize $ dropWhile isWhiteChar spul
+
+-- Symbols (and special symbols)
 tokenize (s:rest) | isSpecial s = Tspecialsymb s : tokenize rest
 tokenize spul | isSymbol (head spul) = let (symbols, rest) = span isSymbol spul in Tsymbols symbols : tokenize rest
+
+-- varid
+tokenize spul@(s:rest) | isLower s || s=='_' = let (varid, rest) = span (\c -> isAlphaNum c || (c=='_') || (c=='\'')) spul in Tvarid varid : tokenize rest
+
+
+
+-- Snappen we niet
 tokenize spul = [Tsymbols $ "error: resterende tokens die we niet snappen: '" ++ spul ++ "'"] -- TODO hier fatsoenlijk error maken? Of alleen error (dus crash)
 
-
+------------------------------------------
 
 digitsToInt :: String -> Integer
 digitsToInt = foldl' (\acc el -> acc*10 + toInteger el) 0 . map digitToInt

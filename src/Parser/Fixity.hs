@@ -7,12 +7,26 @@ import ExprDef
 import Data.Maybe (fromJust, isJust)
 import Utils
 
-solveFixity :: [(String, VarInfo)] -> HExpr -> Either Error HExpr
-solveFixity info (HInfixExpr xs) = solveFixityEen info xs >>= solveFixity info
-solveFixity info (HApply l r) = HApply <$> solveFixity info l <*> solveFixity info r
-solveFixity info (HInfixParentheses inner) = solveFixity info inner
-solveFixity _ x = Right x
 
+solveFixity :: VarStore -> [HDecl HExpr] -> Either Error [HDecl HExpr]
+solveFixity ctx [] = Right []
+solveFixity ctx (x:xs) = case solveFixityExpr ctx <$> x of 
+    (HDecl _ _ (Left e)) -> Left e
+    (HDecl n ps (Right expr)) -> (HDecl n ps expr :) <$> solveFixity ctx xs
+
+
+-- solve fixity van één HExpr, dit doet hij dus recursief door de hele AST van een HExpr
+solveFixityExpr :: [(String, VarInfo)] -> HExpr -> Either Error HExpr
+solveFixityExpr info (HInfixExpr xs) = solveFixityEen info xs >>= solveFixityExpr info
+solveFixityExpr info (HInfixParentheses inner) = solveFixityExpr info inner
+--recursieve opties
+solveFixityExpr info (HApply l r) = HApply <$> solveFixityExpr info l <*> solveFixityExpr info r
+solveFixityExpr info (HLambda naam def) = HLambda naam <$> solveFixityExpr info def
+--overig
+solveFixityExpr _ x = Right x
+
+
+-- solve fixity van één HInfixExpr, en dan dus over de lijst van HExpr die daar ondefvallen
 solveFixityEen :: [(String, VarInfo)] -> [HExpr] -> Either Error HExpr
 solveFixityEen info xs = case checknegatives info xs of
     Nothing -> parse info xs

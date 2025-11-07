@@ -10,7 +10,10 @@ module ExprDef
     WithSource(..),
     HExpr (..),
     VarInfo(..),
-    FixityType(..)
+    FixityType(..),
+    VarStore,
+    varStoreSetDef,
+    HDecl(..),
 ) where
 import qualified Data.Map as M
 
@@ -95,6 +98,17 @@ data Module a = Module {
     moduleDefs :: M.Map String a    
 } deriving (Show) -- TODO show instance
 
+data HDecl a
+    = HDecl String [String] a 
+    deriving (Show)
+
+instance Functor HDecl where
+  fmap :: (a -> b) -> HDecl a -> HDecl b
+  fmap f (HDecl naam params x) = HDecl naam params (f x)
+
+
+
+
 data HExpr
     = HInt Integer
     | HVar String
@@ -105,16 +119,47 @@ data HExpr
     -- | dit is uitsluitend voor voor de correctheid van reeksen infixexpressions, dit zou niet later voor moeten komen
     | HInfixParentheses HExpr
     | HApply HExpr HExpr 
+    | HLambda String HExpr
     deriving (Show)
 
 
 -- traverseHExpr :: Applicative f => (HExpr -> f HExpr) -> HExpr -> f HExpr
 -- traverseHExpr f ()
 
+-- TODO betere opslag (lees: Map)
+type VarStore = [(String, VarInfo)]
+
+-- | verwijdert huidige definitie als aanwezig, en slaat dan nieuwe op
+varStoreAddNew :: String -> VarInfo -> VarStore -> VarStore
+varStoreAddNew var info store = (var, info) : filter ((var==) . fst) store
+
+-- | Als huidig bestaat, vervangt de defintie, anders voegt standaard toe en zet definitie bij die
+varStoreSetDef :: String -> HExpr -> VarStore -> VarStore
+varStoreSetDef naam expr = varStoreModifyDefault naam (\info -> info { varDefinition = Just expr })
+
+-- -- | modifies current if exist, anders voeg gegeven toe.
+-- --   naam -> modifyFun -> newIfNotExist -> huidigVarStore -> aangepasteVarStore
+-- varStoreModifyAdd :: String -> (VarInfo -> VarInfo) -> VarInfo -> VarStore -> VarStore
+-- varStoreModifyAdd naam modFun new store = case lookup naam store of
+--     Nothing -> (naam, new) : store
+--     Just info -> varStoreAddNew naam (modFun info) store
+
+-- -- | voeg default toe voor gegeven naam
+-- varStoreAddDefault :: String -> VarStore -> VarStore
+-- varStoreAddDefault naam store = (naam, VarInfo InfixL 9 Nothing) : store
+
+-- | modifies current if exists, anders insert default en modify die
+varStoreModifyDefault :: String -> (VarInfo -> VarInfo) -> VarStore -> VarStore
+varStoreModifyDefault naam f store = case lookup naam store of
+    Nothing -> (naam, f $ VarInfo InfixL 9 Nothing) : store
+    Just info -> varStoreAddNew naam (f info) store
+
 
 data VarInfo = VarInfo {
     varFixity :: FixityType,
-    varFixityPrecedence :: Int
+    varFixityPrecedence :: Int,
+    -- | Nothing betekent dat het een primitieve is...
+    varDefinition :: Maybe HExpr
 }
 
 data FixityType = InfixL | InfixR | InfixN deriving (Show, Eq)

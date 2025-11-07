@@ -8,13 +8,35 @@ import ExprDef
 -- declToLambda (HDecl name params )
 
 
-astToLambdaCalc :: HExpr -> LambdaCalc
-astToLambdaCalc (HInt x) = Lint x
-astToLambdaCalc (HVar x) = Lvar x
+ -- TODO recursie eruithalen pass --TODO misschien beter die ergens anders neer te zetten?
+astToLambdaCalc :: VarStore -> [HDecl HExpr] -> LambdaCalc
+-- Er zijn geen expressions meer te converten, dus main evalueren
+astToLambdaCalc ctx [] = astToLambdaCalc' ctx (HVar "main")
+-- In het geval van een HDecl moeten we één voor één de parameters naar Lambda expressies vervangen.
+-- Als het geen parameters meer heeft kunnen we de defintie in context opslaan
+-- TODO dit is tevens meest simplisitisch, moet slimmer kunnen
+astToLambdaCalc ctx (HDecl naam [] def : rest) = astToLambdaCalc (varStoreSetDef naam def ctx) rest
+astToLambdaCalc ctx (HDecl naam (p:ps) def : rest) = astToLambdaCalc ctx (HDecl naam ps (HLambda p def) : rest)
+
+
+astToLambdaCalc' :: VarStore -> HExpr -> LambdaCalc
+astToLambdaCalc' ctx (HInt x) = Lint x 
+astToLambdaCalc' ctx (HLambda naam def) = Llambda naam $ astToLambdaCalc' ctx def
 -- TODO deze kijken of we die type-safe kunenn maken, ipv error
-astToLambdaCalc (HInfixExpr _) = error "deze zou niet meer voor moeten komen"
-astToLambdaCalc (HInfixOp _) = error "deze zou niet meer voor moeten komen"
-astToLambdaCalc (HApply f x) = Lapply (astToLambdaCalc f) (astToLambdaCalc x)
+astToLambdaCalc' ctx (HInfixExpr _) = error "deze zou niet meer voor moeten komen"
+astToLambdaCalc' ctx (HInfixParentheses _) = error "deze zou niet meer voor moeten komen"
+astToLambdaCalc' ctx (HInfixOp _) = error "deze zou niet meer voor moeten komen"
+astToLambdaCalc' ctx (HApply f x) = Lapply (astToLambdaCalc' ctx f) (astToLambdaCalc' ctx x)
+-- Kijk of het een bekende variable is, en substitueer de definitie (TODO dit is de meest simplistische versie)
+--TODO recursieve definities zullen nu niet goed gaan. 
+-- Er moet dus vooraf een 'remove recursion' pass over de AST komen, vóór de vertaling
+astToLambdaCalc' ctx (HVar x) = case lookup x ctx >>= varDefinition of 
+    Nothing -> Lvar x 
+    Just def -> astToLambdaCalc' ctx def
+
+
+
+
 
 runLambdaCalc :: LambdaCalc -> DeBruin
 runLambdaCalc = evalDeBruin . lambdaToDeBruin
