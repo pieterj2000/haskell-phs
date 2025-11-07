@@ -8,7 +8,14 @@ import ExprDef
 -- declToLambda (HDecl name params )
 
 
- -- TODO recursie eruithalen pass --TODO misschien beter die ergens anders neer te zetten?
+ -- TODO recursie eruithalen pass --TODO misschien beter die ergens anders neer te zetten? 
+-- Oke recursie zou denk ik alsnog moeten werken denk ik, want hij genereerd in principe dan een oneindige ast
+-- door oneindig de definitie te vervangen, maar zolang alle functies t/m evalueren lazy zijn, zal hij pas 
+-- genereren tot nodig, en als de recursie eindig is, zal hij ook terminaten.
+-- Ik denk dat dat ook zou moeten werken bij letrecs.
+-- Maarrrrr, dan gebruikt het dus geen sharing
+-- En maarrrrr, als we ooit het wel meer willen compilen, dan moeten we het uiteindelijk naar een primitieve fixpoint operator brengen
+-- en die moeten we dan ook gebruiken bij recursieve definities/letrecs
 astToLambdaCalc :: VarStore -> [HDecl HExpr] -> LambdaCalc
 -- Er zijn geen expressions meer te converten, dus main evalueren
 astToLambdaCalc ctx [] = astToLambdaCalc' ctx (HVar "main")
