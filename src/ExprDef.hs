@@ -99,12 +99,12 @@ data Module a = Module {
 } deriving (Show) -- TODO show instance
 
 data HDecl a
-    = HDecl String [String] a 
+    = HDecl String a 
     deriving (Show)
 
 instance Functor HDecl where
   fmap :: (a -> b) -> HDecl a -> HDecl b
-  fmap f (HDecl naam params x) = HDecl naam params (f x)
+  fmap f (HDecl naam x) = HDecl naam (f x)
 
 
 

@@ -8,6 +8,8 @@ import ExprDef
 -- declToLambda (HDecl name params )
 
 
+
+--TODO eerst naar core!
  -- TODO recursie eruithalen pass --TODO misschien beter die ergens anders neer te zetten? 
 -- Oke recursie zou denk ik alsnog moeten werken denk ik, want hij genereerd in principe dan een oneindige ast
 -- door oneindig de definitie te vervangen, maar zolang alle functies t/m evalueren lazy zijn, zal hij pas 
@@ -16,14 +18,14 @@ import ExprDef
 -- Maarrrrr, dan gebruikt het dus geen sharing
 -- En maarrrrr, als we ooit het wel meer willen compilen, dan moeten we het uiteindelijk naar een primitieve fixpoint operator brengen
 -- en die moeten we dan ook gebruiken bij recursieve definities/letrecs
-astToLambdaCalc :: VarStore -> [HDecl HExpr] -> LambdaCalc
+astToLambdaCalc :: VarStore -> [HDecl ([String], HExpr)] -> LambdaCalc
 -- Er zijn geen expressions meer te converten, dus main evalueren
 astToLambdaCalc ctx [] = astToLambdaCalc' ctx (HVar "main")
 -- In het geval van een HDecl moeten we één voor één de parameters naar Lambda expressies vervangen.
 -- Als het geen parameters meer heeft kunnen we de defintie in context opslaan
 -- TODO dit is tevens meest simplisitisch, moet slimmer kunnen
-astToLambdaCalc ctx (HDecl naam [] def : rest) = astToLambdaCalc (varStoreSetDef naam def ctx) rest
-astToLambdaCalc ctx (HDecl naam (p:ps) def : rest) = astToLambdaCalc ctx (HDecl naam ps (HLambda p def) : rest)
+astToLambdaCalc ctx (HDecl naam ([], def) : rest) = astToLambdaCalc (varStoreSetDef naam def ctx) rest
+astToLambdaCalc ctx (HDecl naam ((p:ps), def) : rest) = astToLambdaCalc ctx (HDecl naam (ps, HLambda p def) : rest)
 
 
 astToLambdaCalc' :: VarStore -> HExpr -> LambdaCalc

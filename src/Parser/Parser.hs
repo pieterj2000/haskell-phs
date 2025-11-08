@@ -25,22 +25,28 @@ import Data.List (singleton)
 
 
 
+
+
+
+
+
 type P = P.Parser (Token Char) Error
 
 -- TODO filename in error gooien
-parseFile :: String -> String -> Either Error [HDecl HExpr]
+parseFile :: String -> String -> Either Error [HDecl ([String], HExpr)]
 parseFile filename = P.parseResult topdecls . tokenize
 
-topdecls :: P [HDecl HExpr]
+
+topdecls :: P [HDecl ([String], HExpr)]
 topdecls = P.someSep topdecl (P.token (Tspecialsymb ';') *> pure ())
 
-topdecl :: P (HDecl HExpr)
+topdecl :: P (HDecl ([String], HExpr))
 topdecl = decl
 
-decl :: P (HDecl HExpr)
+decl :: P (HDecl ([String], HExpr))
 decl =
-    let f [x] e = HDecl x [] e
-        f (y:ys) e = HDecl y ys e
+    let f [x] e = HDecl x ([], e)
+        f (y:ys) e = HDecl y (ys, e)
     in f <$> some varidentString <*> (P.token (Tsymbols "=") *> infixExpression) 
 
 
@@ -112,6 +118,7 @@ varsymbol :: P HExpr
 varsymbol = P.getIf (\t -> case t of
     (Tsymbols s) -> if isReservedOp s then Nothing else Just $ HInfixOp $ "(" ++ s ++ ")"
     _ -> Nothing) "(infix) operator consisting of symbols"
+
 
 
 

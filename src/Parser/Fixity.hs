@@ -6,13 +6,14 @@ import Error
 import ExprDef
 import Data.Maybe (fromJust, isJust)
 import Utils
+import Control.Arrow (second)
 
 
-solveFixity :: VarStore -> [HDecl HExpr] -> Either Error [HDecl HExpr]
+solveFixity :: VarStore -> [HDecl ([String], HExpr)] -> Either Error [HDecl ([String], HExpr)]
 solveFixity ctx [] = Right []
-solveFixity ctx (x:xs) = case solveFixityExpr ctx <$> x of 
-    (HDecl _ _ (Left e)) -> Left e
-    (HDecl n ps (Right expr)) -> (HDecl n ps expr :) <$> solveFixity ctx xs
+solveFixity ctx (x:xs) = case second (solveFixityExpr ctx) <$> x of 
+    (HDecl _ (_, Left e)) -> Left e
+    (HDecl n (ps, Right expr)) -> (HDecl n (ps, expr) :) <$> solveFixity ctx xs
 
 
 -- solve fixity van één HExpr, dit doet hij dus recursief door de hele AST van een HExpr
