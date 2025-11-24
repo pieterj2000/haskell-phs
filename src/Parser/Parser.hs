@@ -33,20 +33,20 @@ import Data.List (singleton)
 type P = P.Parser (Token Char) Error
 
 -- TODO filename in error gooien
-parseFile :: String -> String -> Either Error [HDecl ([String], HExpr)]
+parseFile :: String -> String -> Either Error [Decl ([String], HExpr)]
 parseFile filename = P.parseResult topdecls . tokenize
 
 
-topdecls :: P [HDecl ([String], HExpr)]
+topdecls :: P [Decl ([String], HExpr)]
 topdecls = P.someSep topdecl (P.token (Tspecialsymb ';') *> pure ())
 
-topdecl :: P (HDecl ([String], HExpr))
+topdecl :: P (Decl ([String], HExpr))
 topdecl = decl
 
-decl :: P (HDecl ([String], HExpr))
+decl :: P (Decl ([String], HExpr))
 decl =
-    let f [x] e = HDecl x ([], e)
-        f (y:ys) e = HDecl y (ys, e)
+    let f [x] e = Decl x ([], e)
+        f (y:ys) e = Decl y (ys, e)
     in f <$> some varidentString <*> (P.token (Tsymbols "=") *> infixExpression) 
 
 

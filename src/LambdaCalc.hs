@@ -4,11 +4,11 @@ import ExprDef
 
 
 
--- declToLambda :: HDecl -> LambdaCalc
--- declToLambda (HDecl name params )
-
-
-
+-- TODO dit bouwt één hele grote lambda expressie voor het hele programma (specifiek voor main)
+-- is het niet beter om gewoon een [Decl LambdaCalc] te maken? en dan bij het interpretern van die lambdacalculus
+-- (of welke intepreter/runtime we uiteindlijk gaan doen) pas alle definities te substitueren? Over nadenken
+-- Of misschien is dit wel prima, maar dan is deze 'astToLambdaCalc' eigenlijk specifiek een 
+--  'toLambdaCalcZonderSharingAlsÉénGroteExpressie'
 --TODO eerst naar core!
  -- TODO recursie eruithalen pass --TODO misschien beter die ergens anders neer te zetten? 
 -- Oke recursie zou denk ik alsnog moeten werken denk ik, want hij genereerd in principe dan een oneindige ast
@@ -18,28 +18,21 @@ import ExprDef
 -- Maarrrrr, dan gebruikt het dus geen sharing
 -- En maarrrrr, als we ooit het wel meer willen compilen, dan moeten we het uiteindelijk naar een primitieve fixpoint operator brengen
 -- en die moeten we dan ook gebruiken bij recursieve definities/letrecs
-astToLambdaCalc :: VarStore -> [HDecl ([String], HExpr)] -> LambdaCalc
+astToLambdaCalc :: VarStore -> [Decl CExpr] -> LambdaCalc
 -- Er zijn geen expressions meer te converten, dus main evalueren
-astToLambdaCalc ctx [] = astToLambdaCalc' ctx (HVar "main")
--- In het geval van een HDecl moeten we één voor één de parameters naar Lambda expressies vervangen.
--- Als het geen parameters meer heeft kunnen we de defintie in context opslaan
--- TODO dit is tevens meest simplisitisch, moet slimmer kunnen
-astToLambdaCalc ctx (HDecl naam ([], def) : rest) = astToLambdaCalc (varStoreSetDef naam def ctx) rest
-astToLambdaCalc ctx (HDecl naam ((p:ps), def) : rest) = astToLambdaCalc ctx (HDecl naam (ps, HLambda p def) : rest)
+astToLambdaCalc ctx [] = astToLambdaCalc' ctx (CVar "main")
+astToLambdaCalc ctx (Decl naam def : rest) = astToLambdaCalc (varStoreSetDef naam def ctx) rest
 
 
-astToLambdaCalc' :: VarStore -> HExpr -> LambdaCalc
-astToLambdaCalc' ctx (HInt x) = Lint x 
-astToLambdaCalc' ctx (HLambda naam def) = Llambda naam $ astToLambdaCalc' ctx def
--- TODO deze kijken of we die type-safe kunenn maken, ipv error
-astToLambdaCalc' ctx (HInfixExpr _) = error "deze zou niet meer voor moeten komen"
-astToLambdaCalc' ctx (HInfixParentheses _) = error "deze zou niet meer voor moeten komen"
-astToLambdaCalc' ctx (HInfixOp _) = error "deze zou niet meer voor moeten komen"
-astToLambdaCalc' ctx (HApply f x) = Lapply (astToLambdaCalc' ctx f) (astToLambdaCalc' ctx x)
+astToLambdaCalc' :: VarStore -> CExpr -> LambdaCalc
+astToLambdaCalc' ctx (CInt x) = Lint x 
+astToLambdaCalc' ctx (CLambda naam def) = Llambda naam $ astToLambdaCalc' ctx def
+astToLambdaCalc' ctx (CApply f x) = Lapply (astToLambdaCalc' ctx f) (astToLambdaCalc' ctx x)
 -- Kijk of het een bekende variable is, en substitueer de definitie (TODO dit is de meest simplistische versie)
 --TODO recursieve definities zullen nu niet goed gaan. 
 -- Er moet dus vooraf een 'remove recursion' pass over de AST komen, vóór de vertaling
-astToLambdaCalc' ctx (HVar x) = case lookup x ctx >>= varDefinition of 
+-- Oke recursie zal nu wel werken, zie comment bij astToLambdaCalc, maar dit is zeker niet optimaal
+astToLambdaCalc' ctx (CVar x) = case lookup x ctx >>= varDefinition of 
     Nothing -> Lvar x 
     Just def -> astToLambdaCalc' ctx def
 

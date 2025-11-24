@@ -9,11 +9,11 @@ import Utils
 import Control.Arrow (second)
 
 
-solveFixity :: VarStore -> [HDecl ([String], HExpr)] -> Either Error [HDecl ([String], HExpr)]
+solveFixity :: VarStore -> [Decl ([String], HExpr)] -> Either Error [Decl ([String], HExpr)]
 solveFixity ctx [] = Right []
 solveFixity ctx (x:xs) = case second (solveFixityExpr ctx) <$> x of 
-    (HDecl _ (_, Left e)) -> Left e
-    (HDecl n (ps, Right expr)) -> (HDecl n (ps, expr) :) <$> solveFixity ctx xs
+    (Decl _ (_, Left e)) -> Left e
+    (Decl n (ps, Right expr)) -> (Decl n (ps, expr) :) <$> solveFixity ctx xs
 
 
 -- solve fixity van één HExpr, dit doet hij dus recursief door de hele AST van een HExpr

@@ -105,6 +105,7 @@ executable phs
         ParserCombs
         LambdaCalc
         Utils
+        Desugar
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

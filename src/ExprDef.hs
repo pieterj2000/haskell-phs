@@ -13,7 +13,8 @@ module ExprDef
     FixityType(..),
     VarStore,
     varStoreSetDef,
-    HDecl(..),
+    Decl(..),
+    CExpr (..)
 ) where
 import qualified Data.Map as M
 
@@ -98,13 +99,13 @@ data Module a = Module {
     moduleDefs :: M.Map String a    
 } deriving (Show) -- TODO show instance
 
-data HDecl a
-    = HDecl String a 
+data Decl a
+    = Decl String a 
     deriving (Show)
 
-instance Functor HDecl where
-  fmap :: (a -> b) -> HDecl a -> HDecl b
-  fmap f (HDecl naam x) = HDecl naam (f x)
+instance Functor Decl where
+  fmap :: (a -> b) -> Decl a -> Decl b
+  fmap f (Decl naam x) = Decl naam (f x)
 
 
 
@@ -123,6 +124,14 @@ data HExpr
     deriving (Show)
 
 
+data CExpr
+    = CInt Integer
+    | CVar String
+    | CApply CExpr CExpr
+    | CLambda String CExpr
+    deriving (Show)
+
+
 -- traverseHExpr :: Applicative f => (HExpr -> f HExpr) -> HExpr -> f HExpr
 -- traverseHExpr f ()
 
@@ -134,7 +143,7 @@ varStoreAddNew :: String -> VarInfo -> VarStore -> VarStore
 varStoreAddNew var info store = (var, info) : filter ((var==) . fst) store
 
 -- | Als huidig bestaat, vervangt de defintie, anders voegt standaard toe en zet definitie bij die
-varStoreSetDef :: String -> HExpr -> VarStore -> VarStore
+varStoreSetDef :: String -> CExpr -> VarStore -> VarStore
 varStoreSetDef naam expr = varStoreModifyDefault naam (\info -> info { varDefinition = Just expr })
 
 -- -- | modifies current if exist, anders voeg gegeven toe.
@@ -155,11 +164,12 @@ varStoreModifyDefault naam f store = case lookup naam store of
     Just info -> varStoreAddNew naam (f info) store
 
 
+--TODO misschien moet hier geparameteriseerd worden over wat voor type expression het is, nu is het een CExpr, maar misschien ooit iets anders
 data VarInfo = VarInfo {
     varFixity :: FixityType,
     varFixityPrecedence :: Int,
     -- | Nothing betekent dat het een primitieve is...
-    varDefinition :: Maybe HExpr
+    varDefinition :: Maybe CExpr
 }
 
 data FixityType = InfixL | InfixR | InfixN deriving (Show, Eq)

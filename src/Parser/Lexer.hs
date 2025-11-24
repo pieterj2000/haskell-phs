@@ -83,8 +83,6 @@ isWhiteCharNoNewLine _ = False
 
 
 
-
-
 isSpecial :: Char -> Bool
 isSpecial '('   = True
 isSpecial ')'   = True

@@ -9,6 +9,7 @@ import LambdaCalc
 import Parser.Parser
 import Parser.Fixity
 import System.Exit (exitFailure)
+import Desugar
 
 
 varinfoDefault :: VarStore
@@ -43,7 +44,8 @@ main = do
                         in printv "ast" ast >> case solveFixity varinfo ast of
                             (Left e) -> print e >> exitFailure
                             (Right fast) -> do
-                                let lcast = astToLambdaCalc varinfo fast
+                                let core = map desugarToCore fast
+                                    lcast = astToLambdaCalc varinfo core
                                     lcastbruin = lambdaToDeBruin lcast
                                     result = runLambdaCalc lcast
                                 printv "ast na fixity" fast
