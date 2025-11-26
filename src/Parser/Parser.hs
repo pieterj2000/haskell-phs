@@ -33,21 +33,34 @@ import Data.List (singleton)
 type P = P.Parser (Token Char) Error
 
 -- TODO filename in error gooien
-parseFile :: String -> String -> Either Error [Decl ([String], HExpr)]
+parseFile :: String -> String -> Either Error [HDecl]
 parseFile filename = P.parseResult topdecls . tokenize
 
 
-topdecls :: P [Decl ([String], HExpr)]
+topdecls :: P [HDecl]
 topdecls = P.someSep topdecl (P.token (Tspecialsymb ';') *> pure ())
 
-topdecl :: P (Decl ([String], HExpr))
-topdecl = decl
+topdecl :: P (HDecl)
+topdecl = datadecl <|> decl
 
-decl :: P (Decl ([String], HExpr))
+decl :: P HDecl
 decl =
-    let f [x] e = Decl x ([], e)
-        f (y:ys) e = Decl y (ys, e)
+    let f [x] e = HFuncDef x [] e
+        f (y:ys) e = HFuncDef y ys e
     in f <$> some varidentString <*> (P.token (Tsymbols "=") *> infixExpression) 
+
+
+-- TODO context (dus zoals data 'Eq a => Set a = ....')
+-- TODO deriving
+datadecl :: P HDecl
+datadecl = 
+    let f naam params Nothing = HDataDef $ DataDef naam params []
+        f naam params (Just cons) = HDataDef $ DataDef naam params cons
+
+    in f <$> ((P.token (Treserved "data")) *> considentString) <*> many varidentString <*> (optional $ P.token (Tsymbols "=") *> constrs)
+
+constrs :: P [DataConsDef]
+constrs = undefined
 
 
 
@@ -91,12 +104,13 @@ algemeneexpression :: P HExpr
 algemeneexpression
     =   integerExpr
     <|> varident
+    <|> consident
     <|> ( HInfixParentheses <$> P.between (P.token $ Tspecialsymb '(') (P.token $ Tspecialsymb ')') infixExpression )
 
 
 -- TODO qualified maken
 infixOp :: P HExpr
-infixOp = varsymbol <|> varidentInfix -- returnen allebei een HInfixOp
+infixOp = varsymbol <|> varidentInfix <|> conssymbol <|> considentInfix -- returnen allemaal een HInfixOp
 
 varidentInfix :: P HExpr
 varidentInfix = 
@@ -110,7 +124,9 @@ varident = HVar <$> varidentString
 
 varidentString :: P String
 varidentString = P.getIf (\t -> case t of
-    (Tvarid s) -> if isReservedOp s then Nothing else Just s
+    (Tvarid s) -> if isReservedOp s then Nothing else Just s --TODO deze check zit misschien ook al in de lexer
+                                    -- kijk wat we er mee willen, als we het hier houden moeten we opletten dat de volgorde van
+                                    -- de parsers goed is, en als we het in de parser houden moeten we een extra lexemetype ondersteunen
     _ -> Nothing) "varid"
 
 -- | returns the varsymbol already enclosed in braces, i.e. reads ++ as (++)
@@ -118,6 +134,30 @@ varsymbol :: P HExpr
 varsymbol = P.getIf (\t -> case t of
     (Tsymbols s) -> if isReservedOp s then Nothing else Just $ HInfixOp $ "(" ++ s ++ ")"
     _ -> Nothing) "(infix) operator consisting of symbols"
+
+-- TODO qualified maken
+consident :: P HExpr
+consident = HDataConstructor <$> considentString
+
+considentString :: P String
+considentString = P.getIf (\t -> case t of
+    (Tconsid s) -> Just s --TODO deze check zit misschien ook al in de lexer
+                                    -- kijk wat we er mee willen, als we het hier houden moeten we opletten dat de volgorde van
+                                    -- de parsers goed is, en als we het in de parser houden moeten we een extra lexemetype ondersteunen
+    _ -> Nothing) "conid"
+
+-- | returns the conssymbol already enclosed in braces, i.e. reads :++ as (:++)
+conssymbol :: P HExpr
+conssymbol = P.getIf (\t -> case t of
+    -- de enige reserved symbol die met : begint (behalve :, maar dat is wel een data constructor) is ::
+    (Tsymbols s@(':' : _)) -> if s == "::" then Nothing else Just $ HInfixOp $ "(" ++ s ++ ")"
+    _ -> Nothing) "(infix) data constructor consisting of symbols"
+
+considentInfix :: P HExpr
+considentInfix = 
+    let f (HDataConstructor s) = HInfixOp s
+        f _ = error "zou niet moeten gebeuren"
+    in f <$> (P.token (Tspecialsymb '`') *> consident <* P.token (Tspecialsymb '`'))
 
 
 

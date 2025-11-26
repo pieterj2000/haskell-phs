@@ -24,6 +24,8 @@ data Token i
     | Tinteger Integer
     | Tspecialsymb i
     | Tvarid String
+    | Tconsid String
+    | Treserved String
     deriving (Show, Eq)
 
 tokenize :: String -> [Token Char]
@@ -43,13 +45,21 @@ tokenize spul | isWhiteCharNoNewLine (head spul) = tokenize $ dropWhile isWhiteC
 tokenize (s:rest) | isSpecial s = Tspecialsymb s : tokenize rest
 tokenize spul | isSymbol (head spul) = let (symbols, rest) = span isSymbol spul in Tsymbols symbols : tokenize rest
 
--- varid
-tokenize spul@(s:rest) | isLower s || s=='_' = let (varid, rest) = span (\c -> isAlphaNum c || (c=='_') || (c=='\'')) spul in Tvarid varid : tokenize rest
+-- varid (en reservedid)
+tokenize spul@(s:rest) | isLower s || s=='_' = 
+    let (varid, rest) = span (\c -> isAlphaNum c || (c=='_') || (c=='\'')) spul 
+    in if isReserved varid
+        then Treserved varid : tokenize rest -- TODO willen we dit niet gewoon als Tvarid doorgooien?
+        else Tvarid varid : tokenize rest
 
+-- consid
+tokenize spul@(s:rest) | isUpper s = let (consid, rest) = span (\c -> isAlphaNum c || (c=='_') || (c=='\'')) spul in Tconsid consid : tokenize rest
 
 
 -- Snappen we niet
 tokenize spul = [Tsymbols $ "error: resterende tokens die we niet snappen: '" ++ spul ++ "'"] -- TODO hier fatsoenlijk error maken? Of alleen error (dus crash)
+
+
 
 ------------------------------------------
 
@@ -116,11 +126,37 @@ isSymbol '^'    = True
 isSymbol '|'    = True
 isSymbol '-'    = True
 isSymbol '~'    = True
+isSymbol ':'    = True
 isSymbol _      = False
 
 
 
 
+isReserved :: String -> Bool
+isReserved "case"       = True
+isReserved "class"      = True
+isReserved "data"       = True
+isReserved "default"    = True
+isReserved "deriving"   = True
+isReserved "do"         = True
+isReserved "else"       = True
+isReserved "foreign"       = True
+isReserved "if"         = True
+isReserved "import"     = True
+isReserved "in"         = True
+isReserved "infix"      = True
+isReserved "infixl"     = True
+isReserved "infixr"     = True
+isReserved "instance"   = True
+isReserved "let"        = True
+isReserved "module"     = True
+isReserved "newtype"    = True
+isReserved "of"         = True
+isReserved "then"       = True
+isReserved "type"       = True
+isReserved "where"      = True
+isReserved "_"          = True
+isReserved _ = False
 
 
 

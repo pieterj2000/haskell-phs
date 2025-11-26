@@ -18,6 +18,7 @@ tests =
     , ("fixity1.hs", Just $ -4)
     , ("simpelfuncs1.hs", Just 478)
     , ("simpelfuncs2.hs", Just 478)
+    , ("infixfunc.hs", Just 478)
     ]
 
 doeTest :: Show a => (String, Maybe a) -> IO Bool

@@ -1,5 +1,5 @@
 module Parser.Fixity (
-    solveFixity
+    solveFixity,
 ) where
 
 import Error
@@ -9,15 +9,16 @@ import Utils
 import Control.Arrow (second)
 
 
-solveFixity :: VarStore -> [Decl ([String], HExpr)] -> Either Error [Decl ([String], HExpr)]
-solveFixity ctx [] = Right []
-solveFixity ctx (x:xs) = case second (solveFixityExpr ctx) <$> x of 
-    (Decl _ (_, Left e)) -> Left e
-    (Decl n (ps, Right expr)) -> (Decl n (ps, expr) :) <$> solveFixity ctx xs
 
+solveFixity :: VarStore -> [HDecl] -> Either Error [HDecl]
+solveFixity ctx [] = Right []
+solveFixity ctx ( (HFuncDef n ps expr) : xs) = case solveFixityExpr ctx expr of 
+    Left e -> Left e
+    Right expr' -> (HFuncDef n ps expr' :) <$> solveFixity ctx xs
+solveFixity ctx (x:xs) = (x:) <$> solveFixity ctx xs
 
 -- solve fixity van één HExpr, dit doet hij dus recursief door de hele AST van een HExpr
-solveFixityExpr :: [(String, VarInfo)] -> HExpr -> Either Error HExpr
+solveFixityExpr :: VarStore -> HExpr -> Either Error HExpr
 solveFixityExpr info (HInfixExpr xs) = solveFixityEen info xs >>= solveFixityExpr info
 solveFixityExpr info (HInfixParentheses inner) = solveFixityExpr info inner
 --recursieve opties
@@ -28,18 +29,19 @@ solveFixityExpr _ x = Right x
 
 
 -- solve fixity van één HInfixExpr, en dan dus over de lijst van HExpr die daar ondefvallen
-solveFixityEen :: [(String, VarInfo)] -> [HExpr] -> Either Error HExpr
+solveFixityEen :: VarStore -> [HExpr] -> Either Error HExpr
 solveFixityEen info xs = case checknegatives info xs of
     Nothing -> parse info xs
     Just e -> Left e
 
 
-getPrec :: [(String, VarInfo)] -> String -> Int
+getPrec :: VarStore -> String -> Int
 getPrec = varFixityPrecedence . fromJust .: flip lookup 
-getFixity :: [(String, VarInfo)] -> String -> FixityType
+getFixity :: VarStore -> String -> FixityType
 getFixity = varFixity . fromJust .: flip lookup 
+-- TODO default fixity. ofwel hier doen, ofwel tijdens dat de VarInfo voor ieder symbool gemaakt wordt (denk dat dat beter is?)
 
-checknegatives :: [(String, VarInfo)] -> [HExpr] -> Maybe Error
+checknegatives :: VarStore -> [HExpr] -> Maybe Error
 checknegatives _ [] = Nothing
 checknegatives _ [_] = Nothing
 checknegatives opinfo (HInfixOp l : HInfixOp "(-)" : rest) =
@@ -58,7 +60,7 @@ isInfixOp :: HExpr -> Bool
 isInfixOp = isJust . getInfixOpName
 
 
-parse :: [(String, VarInfo)] -> [HExpr] -> Either Error HExpr
+parse :: VarStore -> [HExpr] -> Either Error HExpr
 parse info [HInfixOp "(-)", x] = Right $ HApply (HVar "negate") x
 parse info [a, HInfixOp op, b] = Right $ HApply (HApply (HVar op) a) b
 parse info (HInfixOp "(-)" : b : HInfixOp op : rest) =

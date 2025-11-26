@@ -8,7 +8,9 @@ import ExprDef
 -- is het niet beter om gewoon een [Decl LambdaCalc] te maken? en dan bij het interpretern van die lambdacalculus
 -- (of welke intepreter/runtime we uiteindlijk gaan doen) pas alle definities te substitueren? Over nadenken
 -- Of misschien is dit wel prima, maar dan is deze 'astToLambdaCalc' eigenlijk specifiek een 
---  'toLambdaCalcZonderSharingAlsÉénGroteExpressie'
+--  'toLambdaCalcZonderSharingZonderFixPointAlsÉénGroteExpressie'
+-- TODO wss zullen niet alle runtimes/interpreters alle primitieven begrijpen, dus wellicht moeten we daar wat mee
+-- bijvorbeeld alsnog definities van primitieven-shims meegeven?
 --TODO eerst naar core!
  -- TODO recursie eruithalen pass --TODO misschien beter die ergens anders neer te zetten? 
 -- Oke recursie zou denk ik alsnog moeten werken denk ik, want hij genereerd in principe dan een oneindige ast

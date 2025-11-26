@@ -7,10 +7,10 @@ where
 import ExprDef
 
 
-desugarToCore :: Decl ([String], HExpr) -> Decl CExpr
+desugarToCore :: HDecl -> Decl CExpr
 -- geen parameters meer: 
-desugarToCore (Decl naam ([], def)) = Decl naam $ exprToCore def
-desugarToCore (Decl naam ((p:ps), def)) = desugarToCore $ Decl naam $ (ps, HLambda p def)
+desugarToCore (HFuncDef naam [] def) = Decl naam $ exprToCore def
+desugarToCore (HFuncDef naam (p:ps) def) = desugarToCore $ HFuncDef naam ps $ HLambda p def
 
 
 exprToCore :: HExpr -> CExpr
