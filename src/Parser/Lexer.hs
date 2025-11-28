@@ -18,7 +18,7 @@ import Utils
 
 
 
-
+-- TODO waarom is de rest niet allemaal [i]?
 data Token i
     = Tsymbols [i]
     | Tinteger Integer

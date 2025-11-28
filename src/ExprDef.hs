@@ -156,6 +156,8 @@ data DataConsDef = DataConsDef {
 
 -- TODO willen we hier Data constructors en pattern matching in hebben? Of meteen al een encoding (bijv scott) aan geven
 -- TODO willen we specializaties van bijvoorbeeld lists of zo hierin houden?
+-- TODO willen we hier let(recs) in stoppen?
+-- TODO fixpoint combinator (indien we niet letrecs accepteren)
 data CExpr
     = CInt Integer
     | CVar String

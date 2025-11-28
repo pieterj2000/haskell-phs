@@ -38,7 +38,7 @@ parseFile filename = P.parseResult topdecls . tokenize
 
 
 topdecls :: P [HDecl]
-topdecls = P.someSep topdecl (P.token (Tspecialsymb ';') *> pure ())
+topdecls = P.someSep' topdecl (P.token (Tspecialsymb ';'))
 
 topdecl :: P (HDecl)
 topdecl = datadecl <|> decl
@@ -57,10 +57,13 @@ datadecl =
     let f naam params Nothing = HDataDef $ DataDef naam params []
         f naam params (Just cons) = HDataDef $ DataDef naam params cons
 
-    in f <$> ((P.token (Treserved "data")) *> considentString) <*> many varidentString <*> (optional $ P.token (Tsymbols "=") *> constrs)
+    in f <$> ((P.token (Treserved "data")) *> considentString) <*> many varidentString <*> (optional $ P.token (Tsymbols "=") *> P.someSep constr (P.token $ Tsymbols "|"))
 
-constrs :: P [DataConsDef]
-constrs = undefined
+-- TODO: stricte fields
+-- TODO: Field labels (i.e. { x :: a, y :: b }) notatie
+-- TODO types ook lezen
+constr :: P DataConsDef
+constr = DataConsDef <$> considentString <*> pure 0
 
 
 

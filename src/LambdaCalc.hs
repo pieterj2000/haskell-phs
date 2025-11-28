@@ -1,6 +1,7 @@
 module LambdaCalc where -- TODO exportlijst
 
 import ExprDef
+import qualified Debug.Trace as Debug
 
 
 
@@ -117,6 +118,7 @@ fromSpine (eerste:daarna) = go eerste daarna
         go links [] = links
         go links (rechts:rest) = go (Bapply links rechts) rest
 
+
 -- evals de bruin naively, i.e. no sharing
 evalDeBruin' :: [DeBruin] -> [DeBruin]
 evalDeBruin' [] = error "empty ding zou niet moeten kunnen"
@@ -124,7 +126,9 @@ evalDeBruin' [] = error "empty ding zou niet moeten kunnen"
 evalDeBruin' [Bapply f x] = evalDeBruin' $ makeSpine (Bapply f x)
 -- anders kunnen we het niet oplossen :)
 evalDeBruin' [x] = [x] 
+-- als de top van de spine links een lambda is, dan kunnen we gewoon die application uitvoeren
 evalDeBruin' (Blambda l : x : rest) = evalDeBruin' $ (applyToLambda (Blambda l) x) : rest
+
 evalDeBruin' alles@(Bprim p : rest) = case lookup p primitives of
         Nothing -> error $ "undefined primitive '" ++ p ++ "'" -- TODO fatsoenlijke error maken, of iets mee doen
         Just (arity, fun) ->
@@ -135,17 +139,18 @@ evalDeBruin' alles@(Bprim p : rest) = case lookup p primitives of
                 isInt _ = False
                 fromInt (Bint x) = x
             in if all isInt paramsNormalized
-                then evalDeBruin' $ Bint (fun $ fromInt <$> paramsNormalized) : overig
+                then evalDeBruin' $ (fun $ map fromInt paramsNormalized) : overig
                 else alles
 evalDeBruin' other = error $ "een application van niet application-bare dingen: " ++ show other
 
 
-primitives :: [(String, (Int, [Integer] -> Integer))]
+primitives :: [(String, (Int, [Integer] -> DeBruin))]
 primitives = let (-->) = (,) in
-    [ "negate" --> (1, head . fmap negate)
-    , "(+)" --> (2, sum)
-    , "(-)" --> (2, \[a,b] -> a-b)
-    , "(*)" --> (2, product)
+    [ "negate" --> (1, Bint . head . fmap negate)
+    , "(+)" --> (2, Bint . sum)
+    , "(-)" --> (2, Bint . \[a,b] -> a-b)
+    , "(*)" --> (2, Bint . product)
+    , "(==)" --> (2, \[a,b] -> Blambda $ Blambda $ Bvar (if a == b then 1 else 0)) -- TODO dit is nu hardcoded met de scott encoding, kijken hoe dit beter kan
     ]
 
 

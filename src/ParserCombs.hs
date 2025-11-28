@@ -18,6 +18,7 @@ module ParserCombs (
     -- stoken,
     getIf,
     someSep,
+    someSep',
 ) where
 
 import ExprDef
@@ -140,8 +141,13 @@ between l r p = l *> p <* r
 --         Right x -> Right x
 
 
-someSep :: ParseError i e => Parser i e a -> Parser i e () -> Parser i e [a]
+someSep :: ParseError i e => Parser i e a -> Parser i e b -> Parser i e [a]
 someSep ding sep = (:) <$> ding <*> ( (sep *> someSep ding sep) <|> pure [] )
+
+-- | zelfde als someSep, maar dan mag de seperator meerdere keren tussen twee dingen zitten, en mag ook de 
+-- input beginnen en eindigen met een of meerdere separators
+someSep' :: ParseError i e => Parser i e a -> Parser i e b -> Parser i e [a]
+someSep' ding sep = many sep *> someSep ding (some sep) <* many sep
 
 
 -- some' :: Parser i a -> Parser i [(a, Pos)]

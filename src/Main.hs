@@ -62,14 +62,14 @@ main = do
                             case solveFixity varinfof ast of
                                 (Left e) -> print e >> exitFailure
                                 (Right fast) -> do
-                                    let core = map desugarToCore fast
+                                    let core = concatMap desugarToCore fast
                                         lcast = astToLambdaCalc varinfo core
                                         lcastbruin = lambdaToDeBruin lcast
                                         result = runLambdaCalc lcast
                                     printv "ast na fixity" fast
                                     printv "core" core
-                                    printv "lambdacalc ast" lcast
-                                    printv "debruin ast" lcastbruin
+                                    --printv "lambdacalc ast" lcast
+                                    --printv "debruin ast" lcastbruin
                                     printv "resultaat" result
                                     putStrLn $ showprettyDeBruin result
                 
