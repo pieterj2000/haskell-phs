@@ -163,6 +163,17 @@ data CExpr
     | CVar String
     | CApply CExpr CExpr
     | CLambda String CExpr
+--    | CDataCons String ?? TODO: Is deze nodig?
+    | CCase [String] CExpr -- TODO de string moet een pattern worden
+    | CLet [DataDef] CExpr -- TODO de DataDef moet misschien iets anders zijn?
+    | CLetRec [DataDef] CExpr -- TODO hoe willen we dit aanpakken?
+    deriving (Show)
+
+data CLExpr
+    = CLInt Integer
+    | CLVar String
+    | CLApply CExpr CExpr
+    | CLLambda String CExpr
     deriving (Show)
 
 
