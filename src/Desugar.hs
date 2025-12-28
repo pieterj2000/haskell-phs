@@ -6,22 +6,8 @@ where
 
 import ExprDef
 import Data.List (singleton)
+import Control.Arrow (Arrow(..))
 
-scottEncoding :: [DataConsDef] -> [Decl CExpr]
-scottEncoding cons = 
-    let aantalcons = length cons
-    in zipWith (\c i -> scottEncodeCons aantalcons i c) cons [1..]
-
--- | amount of constructors -> index of this constructor -> ConsDef -> CExpr
-scottEncodeCons :: Int -> Int -> DataConsDef -> Decl CExpr
-scottEncodeCons n i (DataConsDef naam arity) =
-    let paramnames = map (\k -> "x" ++ show k) [1..arity]
-        consnames = map (\k -> "c" ++ show k) [1..n]
-        lambdanames = paramnames ++ consnames
-        deze = "c" ++ show i
-        body = foldl' (\acc el -> CApply acc (CVar el)) (CVar deze) paramnames
-        expr = foldr (\el acc -> CLambda el acc) body lambdanames
-    in Decl naam expr
 
 
 paramstolambda :: HDecl -> HDecl
@@ -36,11 +22,9 @@ desugarToCore :: HDecl -> [Decl CExpr]
 desugarToCore (HFuncDef naam [] def) = singleton . Decl naam $ exprToCore def
 -- nog wel parameters
 desugarToCore x@(HFuncDef _ _ _) = desugarToCore $ paramstolambda x
--- omzetten naar scott encoding 
--- TODO core moet eigenlijk gewoon data constructors hebben, en naar scott encoding moet pas in de lambdacalc conversion of een latere IR pas komen
 -- TODO wat moeten we hier nog doen met typevars?
 -- TODO hoe stoppen we type in core? We stoppen nu alleen nog maar constructor-definities erin
-desugarToCore (HDataDef (DataDef naam typevars cons)) = scottEncoding cons
+desugarToCore (HDataDef d@(DataDef naam typevars cons)) = zipWith (\index n -> Decl n $ CDataCons index d) [0..] $ map dataconsnaam cons
 
 exprToCore :: HExpr -> CExpr
 -- TODO deze kijken of we deze type-safe kunenn maken, ipv error
@@ -52,6 +36,7 @@ exprToCore (HVar naam) = CVar naam
 exprToCore (HApply a b) = CApply (exprToCore a) (exprToCore b)
 exprToCore (HLambda n e) = CLambda n (exprToCore e)
 exprToCore (HDataConstructor naam) = CVar naam -- TODO, voor HDataConstructor niet gewoon HVar gebruiken?
+exprToCore (HCase e opties) = CCase (exprToCore e) $ map (second exprToCore) opties
 
 
 -- [Decl ([String], CExpr)]

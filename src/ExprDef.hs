@@ -17,7 +17,8 @@ module ExprDef
     CExpr (..),
     HDecl(..),
     DataDef(..),
-    DataConsDef(..)
+    DataConsDef(..),
+    HPattern (..)
 ) where
 import qualified Data.Map as M
 
@@ -119,6 +120,13 @@ data HDecl
     | HDataDef DataDef
     deriving (Show)
 
+-- TODO doen
+data HPattern
+    = HPIntLiteral Integer
+    | HPFloatLiteral Double
+    | HPCons String [HPattern]
+    | HPVar String
+    deriving Show
 
 data HExpr
     = HInt Integer
@@ -133,6 +141,7 @@ data HExpr
     | HApply HExpr HExpr 
     | HLambda String HExpr
     | HDataConstructor String -- TODO dit zou ook een HVar kunnen zijn?
+    | HCase HExpr [(HPattern, HExpr)]
     deriving (Show)
 
     -- TODO hier moet eigenlijk nog context constraints bij (dus zoals data 'Eq a => Set a = ....'), en derivings
@@ -163,8 +172,8 @@ data CExpr
     | CVar String
     | CApply CExpr CExpr
     | CLambda String CExpr
---    | CDataCons String ?? TODO: Is deze nodig?
-    | CCase [String] CExpr -- TODO de string moet een pattern worden
+    | CDataCons Int DataDef  --TODO hier de goeie data structure geven. Weet niet wat precies nodig is in de toekomst... Misschien alleen type dat dat voldoende is  -- TODO: Is deze nodig?
+    | CCase CExpr [(HPattern, CExpr)] -- TODO de string moet een pattern worden
     | CLet [DataDef] CExpr -- TODO de DataDef moet misschien iets anders zijn?
     | CLetRec [DataDef] CExpr -- TODO hoe willen we dit aanpakken?
     deriving (Show)

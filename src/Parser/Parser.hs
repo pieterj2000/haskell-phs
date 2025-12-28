@@ -37,7 +37,7 @@ parseFile :: String -> String -> Either Error [HDecl]
 parseFile filename = P.parseResult topdecls . tokenize
 
 
-topdecls :: P [HDecl]
+topdecls :: P [HDecl] -- TODO deze moet someSep' zijn zodra de layout bij parsing is geregeld, en maar maximaal één ';' output voor meerdere witregels
 topdecls = P.someSep' topdecl (P.token (Tspecialsymb ';'))
 
 topdecl :: P (HDecl)
@@ -57,15 +57,16 @@ datadecl =
     let f naam params Nothing = HDataDef $ DataDef naam params []
         f naam params (Just cons) = HDataDef $ DataDef naam params cons
 
-    in f <$> ((P.token (Treserved "data")) *> considentString) <*> many varidentString <*> (optional $ P.token (Tsymbols "=") *> P.someSep constr (P.token $ Tsymbols "|"))
+    in f <$> ((P.token (Treserved "data")) *> constructorIdentifierString) <*> many varidentString <*> (optional $ P.token (Tsymbols "=") *> P.someSep constr (P.token $ Tsymbols "|"))
 
 -- TODO: stricte fields
 -- TODO: Field labels (i.e. { x :: a, y :: b }) notatie
 -- TODO types ook lezen
 constr :: P DataConsDef
-constr = DataConsDef <$> considentString <*> pure 0
+constr = DataConsDef <$> constructorIdentifierString <*> pure 0
 
-
+expression :: P HExpr
+expression = infixExpression
 
 infixExpression :: P HExpr
 infixExpression 
@@ -93,7 +94,54 @@ combineInfixExpr lexpr _ _ = error "combineInfixExpr, krijg andere parsings dan 
 
 leftExpression :: P HExpr
 leftExpression
-    = functionapplicationexpression
+    = caseExpression
+    <|> functionapplicationexpression
+
+
+
+
+
+
+------------------------------------------------------------------
+------ CASE EXPRESSIONS
+------------------------------------------------------------------
+
+caseExpression :: P HExpr
+caseExpression = 
+    let f e alts = HCase e alts
+    in f <$> (P.token (Treserved "case") *> expression <* P.token (Treserved "of")) 
+        <*> (P.token (Tspecialsymb '{') *> P.someSep caseAlt (P.token (Tspecialsymb ';')) <* P.token (Tspecialsymb '}'))
+
+caseAlt :: P (HPattern, HExpr)
+caseAlt = (,) <$> (patternParser <* P.token (Tsymbols "->"))
+            <*> expression
+
+
+
+
+
+------------------------------------------------------------------
+------ PATTERNS
+------------------------------------------------------------------
+
+-- TODO infix constructors ook
+patternParser :: P HPattern
+patternParser = lpatternParser
+
+lpatternParser :: P HPattern
+lpatternParser = apatternParser
+                <|> minus *> ( (HPIntLiteral . negate) <$> integer) -- TODO ook float literal 
+                <|> HPCons <$> constructorIdentifierString <*> some apatternParser
+
+-- TODO hier ook de andere opties allemaal
+apatternParser :: P HPattern
+apatternParser = HPCons <$> constructorIdentifierString <*> pure []
+
+
+
+
+
+
 
 
 functionapplicationexpression :: P HExpr
@@ -107,13 +155,13 @@ algemeneexpression :: P HExpr
 algemeneexpression
     =   integerExpr
     <|> varident
-    <|> consident
+    <|> constructorIdentifier
     <|> ( HInfixParentheses <$> P.between (P.token $ Tspecialsymb '(') (P.token $ Tspecialsymb ')') infixExpression )
 
 
 -- TODO qualified maken
 infixOp :: P HExpr
-infixOp = varsymbol <|> varidentInfix <|> conssymbol <|> considentInfix -- returnen allemaal een HInfixOp
+infixOp = varsymbol <|> varidentInfix <|> conssymbol <|> constructorIdentifierInfix -- returnen allemaal een HInfixOp
 
 varidentInfix :: P HExpr
 varidentInfix = 
@@ -139,11 +187,11 @@ varsymbol = P.getIf (\t -> case t of
     _ -> Nothing) "(infix) operator consisting of symbols"
 
 -- TODO qualified maken
-consident :: P HExpr
-consident = HDataConstructor <$> considentString
+constructorIdentifier :: P HExpr
+constructorIdentifier = HDataConstructor <$> constructorIdentifierString
 
-considentString :: P String
-considentString = P.getIf (\t -> case t of
+constructorIdentifierString :: P String
+constructorIdentifierString = P.getIf (\t -> case t of
     (Tconsid s) -> Just s --TODO deze check zit misschien ook al in de lexer
                                     -- kijk wat we er mee willen, als we het hier houden moeten we opletten dat de volgorde van
                                     -- de parsers goed is, en als we het in de parser houden moeten we een extra lexemetype ondersteunen
@@ -156,11 +204,11 @@ conssymbol = P.getIf (\t -> case t of
     (Tsymbols s@(':' : _)) -> if s == "::" then Nothing else Just $ HInfixOp $ "(" ++ s ++ ")"
     _ -> Nothing) "(infix) data constructor consisting of symbols"
 
-considentInfix :: P HExpr
-considentInfix = 
+constructorIdentifierInfix :: P HExpr
+constructorIdentifierInfix = 
     let f (HDataConstructor s) = HInfixOp s
         f _ = error "zou niet moeten gebeuren"
-    in f <$> (P.token (Tspecialsymb '`') *> consident <* P.token (Tspecialsymb '`'))
+    in f <$> (P.token (Tspecialsymb '`') *> constructorIdentifier <* P.token (Tspecialsymb '`'))
 
 
 

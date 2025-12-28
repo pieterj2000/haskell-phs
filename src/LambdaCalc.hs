@@ -2,6 +2,9 @@ module LambdaCalc where -- TODO exportlijst
 
 import ExprDef
 import qualified Debug.Trace as Debug
+import Control.Arrow (Arrow(..))
+
+
 
 
 
@@ -27,6 +30,45 @@ astToLambdaCalc ctx [] = astToLambdaCalc' ctx (CVar "main")
 astToLambdaCalc ctx (Decl naam def : rest) = astToLambdaCalc (varStoreSetDef naam def ctx) rest
 
 
+scottEncoding :: [DataConsDef] -> [CExpr] --[Decl CExpr]
+scottEncoding cons = 
+    let aantalcons = length cons
+    in zipWith (\c i -> scottEncodeCons aantalcons i c) cons [1..]
+
+-- | amount of constructors -> index of this constructor -> ConsDef -> CExpr
+scottEncodeCons :: Int -> Int -> DataConsDef -> CExpr --Decl CExpr
+scottEncodeCons n i (DataConsDef naam arity) =
+    let paramnames = map (\k -> "x" ++ show k) [1..arity]
+        consnames = map (\k -> "c" ++ show k) [1..n]
+        lambdanames = paramnames ++ consnames
+        deze = "c" ++ show i
+        body = foldl' (\acc el -> CApply acc (CVar el)) (CVar deze) paramnames
+        expr = foldr (\el acc -> CLambda el acc) body lambdanames
+    in expr -- Decl naam expr
+
+
+-- TODO: Precondition is dat het één enkele case distinction is, en de rest allemaal met desugaren is weggewerkt. Eigenlijk moet HPattern een andere type zijn die dat impliciet heeft
+patternMatchToLambda :: VarStore -> CExpr -> [(HPattern, CExpr)] -> LambdaCalc
+patternMatchToLambda ctx exp spul =
+    let expl = astToLambdaCalc' ctx exp
+        spull = map (second $ astToLambdaCalc' ctx) spul
+        go lexp [] = lexp
+        go lexp ((HPCons consnaam vars, doelexp) : rest) = go (Lapply lexp rexp) rest
+            where
+                rexp = foldr (\(HPVar v) e -> Llambda v e) doelexp vars
+        go lexp (_ : rest) = error "zou niet meer voor moeten komen"
+
+    in go expl spull
+
+
+{-
+    = HPIntLiteral Integer
+    | HPFloatLiteral Double
+    | HPCons String [HPattern]
+
+-}
+
+
 astToLambdaCalc' :: VarStore -> CExpr -> LambdaCalc
 astToLambdaCalc' ctx (CInt x) = Lint x 
 astToLambdaCalc' ctx (CLambda naam def) = Llambda naam $ astToLambdaCalc' ctx def
@@ -38,7 +80,16 @@ astToLambdaCalc' ctx (CApply f x) = Lapply (astToLambdaCalc' ctx f) (astToLambda
 astToLambdaCalc' ctx (CVar x) = case lookup x ctx >>= varDefinition of 
     Nothing -> Lvar x 
     Just def -> astToLambdaCalc' ctx def
+astToLambdaCalc' ctx (CDataCons index datadef) = 
+    let numcons = length $ datadefconstrs datadef 
+        con = datadefconstrs datadef !! index -- TODO aanpassen dit is stom
+    in astToLambdaCalc' ctx  $ scottEncodeCons numcons index con
+astToLambdaCalc' ctx (CCase e opties) = patternMatchToLambda ctx e opties
 
+
+-- TODO DOEN
+astToLambdaCalc' ctx (CLet _ _) = undefined
+astToLambdaCalc' ctx (CLetRec _ _) = undefined
 
 
 

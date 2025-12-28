@@ -19,6 +19,7 @@ module ParserCombs (
     getIf,
     someSep,
     someSep',
+    manySep,
 ) where
 
 import ExprDef
@@ -143,6 +144,10 @@ between l r p = l *> p <* r
 
 someSep :: ParseError i e => Parser i e a -> Parser i e b -> Parser i e [a]
 someSep ding sep = (:) <$> ding <*> ( (sep *> someSep ding sep) <|> pure [] )
+
+-- | many, maar dan geseparate door een separator. In het geval van nul of één dingen geparsed, moeten er géén seperators zijn
+manySep :: ParseError i e => Parser i e a -> Parser i e b -> Parser i e [a]
+manySep ding sep = someSep ding sep <|> pure []
 
 -- | zelfde als someSep, maar dan mag de seperator meerdere keren tussen twee dingen zitten, en mag ook de 
 -- input beginnen en eindigen met een of meerdere separators
