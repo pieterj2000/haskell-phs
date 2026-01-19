@@ -16,6 +16,7 @@ paramstolambda (HFuncDef naam params def) = HFuncDef naam [] $ go (reverse param
         go [] expr = expr
         go (p:ps) expr = go ps $ HLambda p expr
 paramstolambda x@(HDataDef _) = x
+paramstolambda x@(HTypeSig _ _) = x
 
 desugarToCore :: HDecl -> [Decl CExpr]
 -- geen parameters meer: 
@@ -24,7 +25,10 @@ desugarToCore (HFuncDef naam [] def) = singleton . Decl naam $ exprToCore def
 desugarToCore x@(HFuncDef _ _ _) = desugarToCore $ paramstolambda x
 -- TODO wat moeten we hier nog doen met typevars?
 -- TODO hoe stoppen we type in core? We stoppen nu alleen nog maar constructor-definities erin
+-- TODO ook type toevoegen aan context
 desugarToCore (HDataDef d@(DataDef naam typevars cons)) = zipWith (\index n -> Decl n $ CDataCons index d) [0..] $ map dataconsnaam cons
+--desugarToCore (HTypeSig naam typ) = 
+desugarToCore (HTypeSig _ _) = [] -- TODO doen
 
 exprToCore :: HExpr -> CExpr
 -- TODO deze kijken of we deze type-safe kunenn maken, ipv error

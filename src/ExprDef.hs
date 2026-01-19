@@ -18,7 +18,8 @@ module ExprDef
     HDecl(..),
     DataDef(..),
     DataConsDef(..),
-    HPattern (..)
+    HPattern (..),
+    Type (..)
 ) where
 import qualified Data.Map as M
 
@@ -111,6 +112,14 @@ instance Functor Decl where
   fmap :: (a -> b) -> Decl a -> Decl b
   fmap f (Decl naam x) = Decl naam (f x)
 
+-- TODO kan dit niet gewoon een HExpr (of vergelijkbaars) zijn? Want het is effectief gewoon function application
+data Type
+    = TypeVar String
+    | TypeConstr String
+    | TypeApply Type Type
+    | TypeArrow Type Type -- TODO eigenlijk moet dit gewoon een apply zijn, i.e. a -> b moet (->) a b zijn
+                            -- dat doen we ook met tupels en lijsten en constructors en zo.
+    deriving (Show)
 
 data HDecl 
     = HFuncDef String [String] HExpr
@@ -118,6 +127,7 @@ data HDecl
     -- maar dat is kijken hoe we types doen, (denk ik bij Decl er in)
     -- TODO dit moeten we herzien zodra we types doen
     | HDataDef DataDef
+    | HTypeSig String Type
     deriving (Show)
 
 -- TODO doen

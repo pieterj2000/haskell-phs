@@ -61,13 +61,6 @@ patternMatchToLambda ctx exp spul =
     in go expl spull
 
 
-{-
-    = HPIntLiteral Integer
-    | HPFloatLiteral Double
-    | HPCons String [HPattern]
-
--}
-
 
 astToLambdaCalc' :: VarStore -> CExpr -> LambdaCalc
 astToLambdaCalc' ctx (CInt x) = Lint x 

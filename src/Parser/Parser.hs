@@ -21,7 +21,7 @@ import Data.Functor (($>))
 import Parser.Fixity
 
 import Error
-import Data.List (singleton)
+import Data.List (singleton, foldl1')
 
 
 
@@ -37,11 +37,58 @@ parseFile :: String -> String -> Either Error [HDecl]
 parseFile filename = P.parseResult topdecls . tokenize
 
 
-topdecls :: P [HDecl] -- TODO deze moet someSep' zijn zodra de layout bij parsing is geregeld, en maar maximaal één ';' output voor meerdere witregels
+topdecls :: P [HDecl] 
 topdecls = P.someSep' topdecl (P.token (Tspecialsymb ';'))
 
 topdecl :: P (HDecl)
-topdecl = datadecl <|> decl
+topdecl = datadecl <|> typesignature <|> decl
+
+
+
+
+------------------------------------------------------------------
+------ TYPE SIGNATURE
+------------------------------------------------------------------
+
+-- TODO al deze onderstaande afmaken
+-- TODO er moet achteraf een check komen of alle arities/kinds wel kloppen van alle data constructors (en van () [] (->) (,) (,,) etc ) dus of het een kloppende type is...
+typesignature :: P HDecl
+typesignature = HTypeSig <$> (varidentString <* P.token (Tsymbols "::")) <*> typedeel
+
+typedeel :: P Type
+typedeel =
+    let f t Nothing = t
+        f t (Just x) = TypeArrow t x
+    in f <$> typedeelb <*> optional (P.token (Tsymbols "->") *> typedeel)
+
+typedeelb :: P Type
+typedeelb = foldl1' TypeApply <$> some typedeela
+
+typedeela :: P Type
+typedeela = typedeelconstructor 
+        <|> ( TypeVar <$> varidentString )
+        <|> typedeela_tuple
+        <|> ( (TypeApply (TypeConstr "[]")) <$> (P.between (P.token $ Tspecialsymb '[') (P.token $ Tspecialsymb ']') typedeel) )
+        <|> ( P.between (P.token $ Tspecialsymb '(') (P.token $ Tspecialsymb ')') typedeel )
+
+typedeela_tuple :: P Type
+typedeela_tuple =
+    let cons x = "(" ++ replicate (length x - 1) ',' ++ ")"
+        f x = foldl' TypeApply (TypeConstr $ cons x) x
+        -- TODO: deze between haakjes moet gewoon een eigen functie zijn, komt vast vaker voor...
+    in f <$> P.between (P.token $ Tspecialsymb '(') (P.token $ Tspecialsymb ')') ( P.someSep2 typedeel (P.token $ Tspecialsymb ',') )
+
+typedeelconstructor :: P Type
+typedeelconstructor = (TypeConstr <$> constructorIdentifierString)
+
+
+
+
+
+
+
+
+
 
 decl :: P HDecl
 decl =
