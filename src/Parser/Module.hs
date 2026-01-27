@@ -7,7 +7,6 @@ import Data.Functor (($>))
 
 
 import qualified ParserCombs as P
-import ExprDef -- (Module(..), Token (..),  SToken)
 -- import Lexer (tokenize, qvarTP, conTP, varTP)
 import Control.Applicative (Alternative(many, (<|>)))
 import Control.Monad ((<=<), (>=>))

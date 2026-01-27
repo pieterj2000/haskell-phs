@@ -9,7 +9,7 @@ module Parser.Parser
 where
 
 
-import ExprDef
+import Defs.Haskell
 
 
 import qualified ParserCombs as P
@@ -22,6 +22,7 @@ import Parser.Fixity
 
 import Error
 import Data.List (singleton, foldl1')
+import Defs.Common (Type(..))
 
 
 

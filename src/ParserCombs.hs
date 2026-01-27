@@ -23,7 +23,6 @@ module ParserCombs (
     someSep2,
 ) where
 
-import ExprDef
 import Control.Applicative (Alternative (..))
 import Data.Traversable (traverse)
 import Prelude hiding (any)

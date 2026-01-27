@@ -7,7 +7,7 @@ module Error (
     ParseError(..)
 ) where
 
-import ExprDef
+
 import Parser.Lexer
 
 -- TODO, moet dit niet geparameteriseerd worden met input type (dus [Token] ipv String)

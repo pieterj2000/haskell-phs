@@ -1,5 +1,5 @@
 {-# LANGUAGE InstanceSigs #-}
-module ExprDef
+module Defs.ExprDefs
 (
     -- Token(..),
     -- Pos(..),
@@ -8,20 +8,19 @@ module ExprDef
     -- PToken
     Source(..),
     WithSource(..),
-    HExpr (..),
     VarInfo(..),
     FixityType(..),
     VarStore,
     varStoreSetDef,
     Decl(..),
     CExpr (..),
-    HDecl(..),
     DataDef(..),
-    DataConsDef(..),
     HPattern (..),
-    Type (..)
 ) where
 import qualified Data.Map as M
+import Defs.Haskell (DataDef, HPattern)
+
+
 
 
 -- type PToken = (SToken, Pos)
@@ -111,66 +110,6 @@ data Decl a
 instance Functor Decl where
   fmap :: (a -> b) -> Decl a -> Decl b
   fmap f (Decl naam x) = Decl naam (f x)
-
--- TODO kan dit niet gewoon een HExpr (of vergelijkbaars) zijn? Want het is effectief gewoon function application
-data Type
-    = TypeVar String
-    | TypeConstr String
-    | TypeApply Type Type
-    | TypeArrow Type Type -- TODO eigenlijk moet dit gewoon een apply zijn, i.e. a -> b moet (->) a b zijn
-                            -- dat doen we ook met tupels en lijsten en constructors en zo.
-    deriving (Show)
-
-data HDecl 
-    = HFuncDef String [String] HExpr
-    -- TODO hier moet eigenlijk nog context constraints bij (dus zoals data 'Eq a => Set a = ....'), en derivings
-    -- maar dat is kijken hoe we types doen, (denk ik bij Decl er in)
-    -- TODO dit moeten we herzien zodra we types doen
-    | HDataDef DataDef
-    | HTypeSig String Type
-    deriving (Show)
-
--- TODO doen
-data HPattern
-    = HPIntLiteral Integer
-    | HPFloatLiteral Double
-    | HPCons String [HPattern]
-    | HPVar String
-    deriving Show
-
-data HExpr
-    = HInt Integer
-    | HVar String
-    -- TODO deze door typing weten uit te sluiten :)
-    -- | dit is uitsluitend voor reeksen infix operators waar fixity nog niet voor is bepaald! Anders moet het gewoon HVar gebruiken
-    | HInfixOp String 
-    -- | dit is uitsluitend voor reeksen infix operators waar fixity nog niet voor is bepaald! Anders moet het gewoon HApply gebruiken
-    | HInfixExpr [HExpr]
-    -- | dit is uitsluitend voor voor de correctheid van reeksen infixexpressions, dit zou niet later voor moeten komen
-    | HInfixParentheses HExpr
-    | HApply HExpr HExpr 
-    | HLambda String HExpr
-    | HDataConstructor String -- TODO dit zou ook een HVar kunnen zijn?
-    | HCase HExpr [(HPattern, HExpr)]
-    deriving (Show)
-
-    -- TODO hier moet eigenlijk nog context constraints bij (dus zoals data 'Eq a => Set a = ....'), en derivings
-    -- maar dat is kijken hoe we types doen, (denk ik bij Decl er in?)
-    -- TODO dit moeten we herzien zodra we types doen
-    -- TODO deze niet gewoon allemaal in de constructor van HDataDef in HDecl gooien?
-data DataDef = DataDef {
-        datadefnaam :: String,
-        datadeftypevars :: [String],
-        datadefconstrs :: [DataConsDef] 
-    } deriving (Show)
-
--- TODO types hierin toevoegen? Afhankelijk van hoe we types gaan doen. We moeten zorgen dat de type parameters hierin ook 
--- echt gedefinieerd zijn in de data decls 
--- TODO labelled fields moeten ook hier nog in, TODO ook strictness flags. 
-data DataConsDef = DataConsDef {
-    dataconsnaam :: String,
-    dataconsarity :: Int --TODO deze mag denk ik weg zodra types geimplementeeerd zijn
-} deriving (Show)
 
 
 -- TODO willen we hier Data constructors en pattern matching in hebben? Of meteen al een encoding (bijv scott) aan geven

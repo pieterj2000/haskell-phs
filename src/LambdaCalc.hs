@@ -1,8 +1,9 @@
 module LambdaCalc where -- TODO exportlijst
 
-import ExprDef
+import Defs.ExprDefs
 import qualified Debug.Trace as Debug
 import Control.Arrow (Arrow(..))
+import Defs.Haskell (HPattern(..), DataConsDef (..), DataDef (datadefconstrs))
 
 
 

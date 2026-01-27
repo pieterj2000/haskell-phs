@@ -4,13 +4,14 @@ import System.Environment (getArgs)
 
 import Parser.Module
 import Parser.Lexer 
-import ExprDef (Module(..), VarInfo (..), FixityType (..), VarStore, Decl, HExpr, HDecl (..))
 import LambdaCalc
 import Parser.Parser
 import Parser.Fixity
 import System.Exit (exitFailure)
 import Desugar
 import Data.Maybe (mapMaybe)
+import Defs.ExprDefs (VarStore, VarInfo (..), FixityType (..))
+import Defs.Haskell (HDecl (..))
 
 
 varinfoDefault :: VarStore

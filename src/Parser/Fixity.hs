@@ -3,10 +3,11 @@ module Parser.Fixity (
 ) where
 
 import Error
-import ExprDef
 import Data.Maybe (fromJust, isJust)
 import Utils
 import Control.Arrow (second)
+import Defs.ExprDefs
+import Defs.Haskell
 
 
 

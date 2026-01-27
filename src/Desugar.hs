@@ -4,9 +4,10 @@ module Desugar
 )
 where
 
-import ExprDef
+import Defs.ExprDefs
 import Data.List (singleton)
 import Control.Arrow (Arrow(..))
+import Defs.Haskell (HExpr(..), HDecl (..), DataDef (..), DataConsDef (..))
 
 
 

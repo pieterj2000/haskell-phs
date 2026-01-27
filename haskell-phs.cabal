@@ -94,18 +94,28 @@ executable phs
     -- Modules included in this executable, other than Main.
     -- TODO opschonen
     other-modules:
-        Data.Map
         Parser.Parser
         Parser.Lexer.Layout
         Parser.Lexer
         Parser.Fixity
         Parser.Module
+
+        Defs.Common
+        Defs.ExprDefs
+        Defs.Haskell
+
         Error
-        ExprDef
         ParserCombs
         LambdaCalc
         Utils
         Desugar
+
+        Data.Map
+
+
+
+        -- TODO deze moeten eruit
+        --Prelude
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
@@ -117,6 +127,10 @@ executable phs
     -- Directories containing source files.
     hs-source-dirs:
         src
+        utils
+
+        -- TODO deze mag er uit
+        --lib 
 
     -- Base language which the package is written in.
     default-language: Haskell2010

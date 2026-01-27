@@ -9,7 +9,7 @@ module Parser.Lexer (
     Token(..)
 ) where
 
-import ExprDef
+import Defs.ExprDefs
 
 import Data.Char (isAlphaNum, isUpper, isLower, isDigit, digitToInt)
 import Control.Applicative (many, Alternative ((<|>), some), optional)
