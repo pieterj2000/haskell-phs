@@ -127,7 +127,7 @@ executable phs
     -- Directories containing source files.
     hs-source-dirs:
         src
-        utils
+        src/utils
 
         -- TODO deze mag er uit
         --lib 
