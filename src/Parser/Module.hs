@@ -1,19 +1,74 @@
+{-# LANGUAGE RankNTypes #-}
 module Parser.Module (
     -- parseModule,
     --parseFile
-    ) where
-
-import Data.Functor (($>))
+    parseFile) where
 
 
-import qualified ParserCombs as P
--- import Lexer (tokenize, qvarTP, conTP, varTP)
-import Control.Applicative (Alternative(many, (<|>)))
-import Control.Monad ((<=<), (>=>))
-import Data.Char (isSpace)
+import Defs.ExprDefs (Module (Module), VarStore, VarInfo (..), FixityType (..), Decl (..), CExpr)
+import Error (Error (..))
+import Defs.Haskell (HDecl (..))
+import Parser.Parser (parseModuleBody)
+import Parser.Lexer (tokenize)
+import Data.Maybe (mapMaybe)
+import Parser.Fixity (solveFixity)
+import Desugar (desugarToCore)
 import qualified Data.Map as M
-import Parser.Lexer
-import Parser.Parser
+
+
+
+varinfoDefault :: VarStore
+varinfoDefault = let (-->) = (,) in
+    [ "(-)" --> VarInfo InfixL 6 Nothing
+    , "(+)" --> VarInfo InfixL 6 Nothing
+    , "(*)" --> VarInfo InfixL 7 Nothing
+    ]
+
+
+-- TODO ergens een check dat er maar één definitie, type, en infix declaration per functie is....
+
+--TODO naar andere file (misschien iets van een Parser.Postprocess, of misscien naar Parser, en dan alles wat in de huidige Parser staat naar Parser.Parser of zo?)
+-- | adds all fixity declaration to the variable store, so that sequences of infix operations 
+--   can be resolved. Note that this does not add definitions yet to the varstore
+--TODO ook daadwerkelijke infix opslaan zodra infix declarations ook echt werken :)
+--TODO alle types van HDecl doen
+registerFixity :: VarStore -> [HDecl] -> VarStore
+registerFixity vars decls = 
+    let fundefs = mapMaybe (\x -> case x of { (HFuncDef naam _) -> Just naam; _ -> Nothing }) decls
+    in foldr (\naam store -> (naam, VarInfo InfixL 9 Nothing) : store) vars fundefs
+
+
+
+
+-- TODO hier een fatsoenlijke monad van maken.... of ExceptT IO
+-- TODO die Varstore moet eigenlijk in Module verwerkt worden samen met de CExpressions
+parseFile :: String -> (forall a. (Show a) => String -> a -> IO ()) -> IO (Either Error (VarStore, Module CExpr))
+parseFile filenaam printv = do
+    -- parse 'header', i.e. vind welke imports hij heeft
+    -- parse die imports
+    -- dán pas deze zelf parsen (of misschien wel al parsen maar nog niet desugaren en derglijke)
+    -- en alles desugeren en dergelijke
+    input <- readFile filenaam
+    let mast = parseModuleBody filenaam input
+    printv "input" $ input
+    printv "tokens" $ tokenize input
+    case mast of 
+        (Left e) -> pure $ Left e
+        (Right ast) -> 
+            do
+                let varinfo = varinfoDefault -- TODO 
+                printv "ast" ast
+                let varinfof = registerFixity varinfo ast
+                -- TODO fixity solven moet naar desugar!!!!
+                case solveFixity varinfof ast of
+                    (Left e) -> pure $ Left e
+                    (Right fast) -> do
+                        let core = concatMap desugarToCore fast
+                            -- TODO deze map vullen is rommelig zo, beter maken
+                            m = M.fromList [ (naam, expr) | (Decl naam expr) <- core]
+                        printv "ast na fixity" fast
+                        printv "core" core
+                        pure $ Right $ (varinfof, Module "moduleName" filenaam [] [] m)
 
 
 

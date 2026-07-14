@@ -4,6 +4,7 @@ import Defs.ExprDefs
 import qualified Debug.Trace as Debug
 import Control.Arrow (Arrow(..))
 import Defs.Haskell (HPattern(..), DataConsDef (..), DataDef (datadefconstrs))
+import Data.List (elemIndex)
 
 
 
@@ -128,7 +129,7 @@ test = Llambda "f" $ Lapply (Llambda "x" $ Lapply (Lvar "x") (Lvar "x")) (Llambd
 lambdaToDeBruin :: LambdaCalc -> DeBruin
 lambdaToDeBruin = go []
     where
-        go context (Lvar x) = case lookup x $ zip context [0..] of
+        go context (Lvar x) = case elemIndex x context of
                                     Just i -> Bvar i
                                     Nothing -> Bprim x
         go context (Llambda x y) = Blambda $ go (x:context) y

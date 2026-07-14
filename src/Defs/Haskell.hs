@@ -16,6 +16,7 @@ data HDecl
     -- maar dat is kijken hoe we types doen, (denk ik bij Decl er in)
     -- TODO dit moeten we herzien zodra we types doen
     | HDataDef DataDef
+    -- TODO misschien TypeSig op een andere manier, want die moet straks samen met fixity en dergelijke bij standaard declaraties...
     | HTypeSig String Type
     deriving (Show)
 

@@ -25,6 +25,7 @@ solveFixityExpr info (HInfixParentheses inner) = solveFixityExpr info inner
 --recursieve opties
 solveFixityExpr info (HApply l r) = HApply <$> solveFixityExpr info l <*> solveFixityExpr info r
 solveFixityExpr info (HLambda naam def) = HLambda naam <$> solveFixityExpr info def
+solveFixityExpr info (HMetParams params def) = HMetParams params <$> solveFixityExpr info def
 --overig
 solveFixityExpr _ x = Right x
 

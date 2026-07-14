@@ -1,9 +1,8 @@
-{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
 module Parser.Parser
 (
- parseFile
+    parseModuleBody
 )
 -- TODO export list
 where
@@ -34,8 +33,8 @@ import Defs.Common (Type(..))
 type P = P.Parser (Token Char) Error
 
 -- TODO filename in error gooien
-parseFile :: String -> String -> Either Error [HDecl]
-parseFile filename = P.parseResult topdecls . tokenize
+parseModuleBody :: String -> String -> Either Error [HDecl]
+parseModuleBody filename = P.parseResult topdecls . tokenize
 
 
 topdecls :: P [HDecl] 

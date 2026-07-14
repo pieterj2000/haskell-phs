@@ -12,23 +12,16 @@ import Data.List (singleton)
 import Control.Arrow (Arrow(..))
 import Defs.Haskell (HExpr(..), HDecl (..), DataDef (..), DataConsDef (..))
 
-paramstolambda :: HDecl -> HDecl -- TODO Succ Paramsweg vervangen met fase (zodra we ze gedefinieert hebben)
-paramstolambda (HFuncDef naam def) = HFuncDef naam $ doe def 
+paramstolambda :: HExpr -> HExpr -- TODO Succ Paramsweg vervangen met fase (zodra we ze gedefinieert hebben)
+paramstolambda (HMetParams params exp) = go (reverse params) exp
     where
-        doe :: HExpr -> HExpr
-        doe (HMetParams params exp) = exp --go (reverse params) exp
-        doe x = x
-
         go [] expr = expr
         go (p:ps) expr = go ps $ HLambda p expr
-paramstolambda x@(HDataDef _) = x
-paramstolambda x@(HTypeSig _ _) = x
+paramstolambda x = x
 
 desugarToCore :: HDecl -> [Decl CExpr]
 -- geen parameters meer: 
-desugarToCore (HFuncDef naam def) = singleton . Decl naam $ exprToCore def
--- nog wel parameters
-desugarToCore x@(HFuncDef _ _) = desugarToCore $ paramstolambda x
+desugarToCore (HFuncDef naam def) = singleton . Decl naam . exprToCore $ desugarHExpr def
 -- TODO wat moeten we hier nog doen met typevars?
 -- TODO hoe stoppen we type in core? We stoppen nu alleen nog maar constructor-definities erin
 -- TODO ook type toevoegen aan context
@@ -36,11 +29,15 @@ desugarToCore (HDataDef d@(DataDef naam typevars cons)) = zipWith (\index n -> D
 --desugarToCore (HTypeSig naam typ) = 
 desugarToCore (HTypeSig _ _) = [] -- TODO doen
 
+desugarHExpr :: HExpr -> HExpr
+desugarHExpr = paramstolambda
+
 exprToCore :: HExpr -> CExpr
 -- TODO deze kijken of we deze type-safe kunenn maken, ipv error
 exprToCore (HInfixExpr _) = error "deze zou niet meer voor moeten komen"
 exprToCore (HInfixParentheses _) = error "deze zou niet meer voor moeten komen"
 exprToCore (HInfixOp _) = error "deze zou niet meer voor moeten komen"
+exprToCore (HMetParams _ _) = error "deze zou niet meer voor moeten komen"
 exprToCore (HInt i) = CInt i
 exprToCore (HVar naam) = CVar naam
 exprToCore (HApply a b) = CApply (exprToCore a) (exprToCore b)
