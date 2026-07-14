@@ -44,7 +44,7 @@ data HExpr where
     HLambda :: String -> HExpr -> HExpr
     HDataConstructor :: String -> HExpr -- TODO dit zou ook een HVar kunnen zijn?
     HCase :: HExpr -> [(HPattern, HExpr)] -> HExpr
-deriving instance Show (HExpr)
+deriving instance Show HExpr
 
 
 -- TODO hier moet eigenlijk nog context constraints bij (dus zoals data 'Eq a => Set a = ....'), en derivings

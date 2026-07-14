@@ -41,7 +41,7 @@ parseFile filename = P.parseResult topdecls . tokenize
 topdecls :: P [HDecl] 
 topdecls = P.someSep' topdecl (P.token (Tspecialsymb ';'))
 
-topdecl :: P (HDecl)
+topdecl :: P HDecl
 topdecl = datadecl <|> typesignature <|> decl
 
 
