@@ -12,32 +12,21 @@ where
 import Defs.ExprDefs
 import Data.List (singleton)
 import Control.Arrow (Arrow(..))
-import Defs.Haskell (HExpr(..), HDecl (..), DataDef (..), DataConsDef (..), ParamsWeg, Nat (..), Klaar, type (<=), type (<))
+import Defs.Haskell (HExpr(..), HDecl (..), DataDef (..), DataConsDef (..))
 
-upgrade :: a < b => HExpr a -> HExpr b
-upgrade (HInt a) = HInt a
-upgrade (HVar a) = HVar a
-upgrade (HInfixOp a) = HInfixOp a
-
-paramstolambda :: HDecl ParamsWeg -> HDecl a -- TODO Succ Paramsweg vervangen met fase (zodra we ze gedefinieert hebben)
+paramstolambda :: HDecl -> HDecl -- TODO Succ Paramsweg vervangen met fase (zodra we ze gedefinieert hebben)
 paramstolambda (HFuncDef naam def) = HFuncDef naam $ doe def 
     where
-        doe :: HExpr ParamsWeg -> HExpr a
+        doe :: HExpr -> HExpr
         doe (HMetParams params exp) = exp --go (reverse params) exp
-        doe (HInt _) = go (reverse params) exp
-        doe (HVar _) = go (reverse params) exp
-        doe (HApply _ _) = go (reverse params) exp
-        doe (HLambda _ _) = go (reverse params) exp
-        doe (HDataConstructor _) = go (reverse params) exp
-        doe (HCase _ _) = go (reverse params) exp
-
+        doe x = x
 
         go [] expr = expr
         go (p:ps) expr = go ps $ HLambda p expr
 paramstolambda x@(HDataDef _) = x
 paramstolambda x@(HTypeSig _ _) = x
 
-desugarToCore :: HDecl Klaar -> [Decl CExpr]
+desugarToCore :: HDecl -> [Decl CExpr]
 -- geen parameters meer: 
 desugarToCore (HFuncDef naam def) = singleton . Decl naam $ exprToCore def
 -- nog wel parameters
@@ -49,7 +38,7 @@ desugarToCore (HDataDef d@(DataDef naam typevars cons)) = zipWith (\index n -> D
 --desugarToCore (HTypeSig naam typ) = 
 desugarToCore (HTypeSig _ _) = [] -- TODO doen
 
-exprToCore :: HExpr Klaar -> CExpr
+exprToCore :: HExpr -> CExpr
 -- TODO deze kijken of we deze type-safe kunenn maken, ipv error
 exprToCore (HInfixExpr _) = error "deze zou niet meer voor moeten komen"
 exprToCore (HInfixParentheses _) = error "deze zou niet meer voor moeten komen"

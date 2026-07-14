@@ -30,7 +30,7 @@ varinfoDefault = let (-->) = (,) in
 --TODO alle types van HDecl doen
 registerFixity :: VarStore -> [HDecl] -> VarStore
 registerFixity vars decls = 
-    let fundefs = mapMaybe (\x -> case x of { (HFuncDef naam _ _) -> Just naam; _ -> Nothing }) decls
+    let fundefs = mapMaybe (\x -> case x of { (HFuncDef naam _) -> Just naam; _ -> Nothing }) decls
     in foldr (\naam store -> (naam, VarInfo InfixL 9 Nothing) : store) vars fundefs
 
 

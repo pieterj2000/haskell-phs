@@ -93,8 +93,8 @@ typedeelconstructor = (TypeConstr <$> constructorIdentifierString)
 
 decl :: P HDecl
 decl =
-    let f [x] e = HFuncDef x [] e
-        f (y:ys) e = HFuncDef y ys e
+    let f [x] e = HFuncDef x e
+        f (y:ys) e = HFuncDef y (HMetParams ys e)
     in f <$> some varidentString <*> (P.token (Tsymbols "=") *> infixExpression) 
 
 

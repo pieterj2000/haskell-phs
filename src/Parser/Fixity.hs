@@ -13,9 +13,9 @@ import Defs.Haskell
 
 solveFixity :: VarStore -> [HDecl] -> Either Error [HDecl]
 solveFixity ctx [] = Right []
-solveFixity ctx ( (HFuncDef n ps expr) : xs) = case solveFixityExpr ctx expr of 
+solveFixity ctx ( (HFuncDef n expr) : xs) = case solveFixityExpr ctx expr of 
     Left e -> Left e
-    Right expr' -> (HFuncDef n ps expr' :) <$> solveFixity ctx xs
+    Right expr' -> (HFuncDef n expr' :) <$> solveFixity ctx xs
 solveFixity ctx (x:xs) = (x:) <$> solveFixity ctx xs
 
 -- solve fixity van één HExpr, dit doet hij dus recursief door de hele AST van een HExpr
