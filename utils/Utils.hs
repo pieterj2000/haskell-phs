@@ -18,6 +18,7 @@ module Utils (
     mapLeft
 , (.:)) where
 import Data.Void
+import Data.Kind (Constraint)
 
 
 
@@ -60,15 +61,63 @@ type Nat3 = Succ Nat2
 type Nat4 = Succ Nat3
 type Nat5 = Succ Nat4
 
+type family Tot (maxfase :: Nat) (fase :: Nat) :: Nat where
+    -- Tot Zero b = b
+    -- Tot (Succ a) b = Succ (Tot a b)
+    -- Tot Zero b = b
+    --Tot (Succ a) (Succ b) = Tot a (Succ b)
+    --Tot (Succ a) (Succ b) = Tot a (Succ b)
+    Tot (Succ a) (Succ b) = Tot a b
+    Tot a Zero = a
+
 data Asdf (fase :: Nat) where
+    Poep0 :: Asdf fase -> Asdf (Tot Nat0 fase)
+    Poep1 :: Asdf (Tot Nat1 fase)
+    Poep2 :: Asdf (Tot Nat2 fase)
+    Poep3 :: Asdf (Tot Nat3 fase)
     Nul :: Asdf Nat0 
     Een :: Asdf Nat1
     Twee :: Asdf Nat2
     Drie :: Asdf Nat3
     Alles :: Asdf fase
-    Mix :: Asdf fase1 -> Asdf fase2 -> Asdf (Min fase1 fase2)
-    Lijst :: fase <= lijstfase => FaseList Asdf lijstfase -> Asdf fase
-    Lijst' :: FaseList Asdf Nat2 -> Asdf Nat2
+    App :: Asdf fase -> Asdf fase -> Asdf fase
+    --VanafNul :: Aaa fase => Asdf fase
+    --Mix :: Asdf fase1 -> Asdf fase2 -> Asdf (Min fase1 fase2)
+    --Lijst :: fase <= lijstfase => FaseList Asdf lijstfase -> Asdf fase
+    --Lijst' :: FaseList Asdf Nat2 -> Asdf Nat2
+
+poep :: Asdf (Tot Nat0 Nat4)
+poep = undefined
+
+test1 :: Asdf Nat1 -> ()
+test1 (Poep0 f) = ()
+test1 Poep1 = ()
+test1 Poep2 = ()
+test1 Poep3 = ()
+test1 Nul = ()
+test1 Een = ()
+test1 Twee = ()
+test1 Drie = ()
+test1 Alles = ()
+test1 (App a b) = ()
+--test1 (Mix _ _) = ()
+--test1 (Lijst _) = ()
+--test1 (Lijst' _) = ()
+
+class Impossible
+type family Aaa (f :: Nat) :: Constraint where
+    Aaa Zero = () 
+    Aaa (Succ a) = Impossible
+
+func :: Asdf Nat2 -> Maybe a -> Maybe a
+func Nul a = Nothing
+func Een a = Nothing
+func Twee a = Nothing
+func Drie a = Nothing
+func Alles a = Nothing
+--func VanafNul a = Nothing
+
+--asdf = func Een
 
 
 data FaseList a (fase :: Nat) where
@@ -91,13 +140,13 @@ deriving instance Show (Asdf fase)
 --instance Show ((forall f. Asdf f -> r) -> r)
 
 --f :: FaseList Asdf 
-f :: Asdf Nat1
-f = Lijst $ Twee :< Nil @Nat5
+--f :: Asdf Nat1
+--f = Lijst $ Twee :< Nil @Nat5
 
 
 --g = Lijst' $  :< Nil @Nat2
 
-b = show f
+--b = show f
 
 
 
@@ -139,7 +188,6 @@ eenofhoger' = nulofhoger
 
 doe1 = nulofhoger Nul
 doe = eenofhoger Een
-doe2 = tweeofhoger $ Mix Drie (Alles @Nat3)
+--doe2 = tweeofhoger $ Mix Drie (Alles @Nat3)
 doe2' = tweeofhoger' Twee
-
 

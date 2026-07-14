@@ -42,7 +42,7 @@ data HPattern
 
 
 
-data Nat = Zero | Succ Nat
+data Nat = Zero | Succ Nat | Infinity
 
 type Parsen = Zero
 type FixityRegister = Succ Parsen
@@ -54,6 +54,10 @@ type family Min (a :: Nat) (b :: Nat) :: Nat where
     Min Zero a = Zero
     Min a Zero = Zero
     Min (Succ a) (Succ b) = Succ (Min a b)
+
+type family Minimum (a :: [Nat]) :: Nat where
+    Minimum '[] = Infinity
+    Minimum (x : rest) = Min x (Minimum rest)
 
 type family Vanaf fase (a :: Nat) where
     Vanaf fase Zero = fase
@@ -71,9 +75,9 @@ instance Zero < Succ a
 instance a < b => Succ a < Succ b
 
 
-data FaseList a (faselist :: Nat) (maxfase :: Nat) where
-    Nil ::  FaseList a '[] maxfase
-    (:<) :: a fase maxfase -> FaseList a faselist lmaxfase -> FaseList a (fase : faselist) (Min maxfase lmaxfase) 
+data FaseList a (fase :: Nat) (maxfases :: [Nat]) where
+    Nil ::  FaseList a fase '[]
+    (:<) :: a fase maxfase -> FaseList a fase maxfases -> FaseList a fase (maxfase : lmaxfase) 
 infixr 5 :<
 deriving instance Show (FaseList HExpr f maxfase)
 deriving instance Show (FaseList (CaseOption HExpr) f maxfase)
@@ -90,7 +94,7 @@ data HExpr (fase :: Nat) (maxfase :: Nat) where
     -- | dit is uitsluitend voor reeksen infix operators waar fixity nog niet voor is bepaald! Anders moet het gewoon HVar gebruiken
     HInfixOp :: String -> HExpr fase FixitySolve
     -- | dit is uitsluitend voor reeksen infix operators waar fixity nog niet voor is bepaald! Anders moet het gewoon HApply gebruiken
-    HInfixExpr :: FaseList HExpr faselist FixitySolve -> HExpr fase FixitySolve
+    HInfixExpr :: FaseList HExpr fase maxfases -> HExpr fase FixitySolve
     -- | dit is uitsluitend voor voor de correctheid van reeksen infixexpressions, dit zou niet later voor moeten komen
     HInfixParentheses :: HExpr fase FixitySolve -> HExpr fase FixitySolve
     -- | hier storen we de parameters in van links naar rechts (TODO mischien van rechts naar links beter?), (effectief zelfde als HLambda met hogere arity)
@@ -98,7 +102,7 @@ data HExpr (fase :: Nat) (maxfase :: Nat) where
     HApply :: HExpr f fase1 -> HExpr f fase2 -> HExpr f (Min fase1 fase2)
     HLambda :: String -> HExpr f maxfase -> HExpr f maxfase
     HDataConstructor :: String -> HExpr f maxfase -- TODO dit zou ook een HVar kunnen zijn?
-    HCase :: HExpr f lfase -> FaseList (CaseOption HExpr) faselist rfase -> HExpr f (Min lfase rfase)
+    HCase :: HExpr f lfase -> FaseList (CaseOption HExpr) fase maxfases -> HExpr f (Min lfase rfase)
 deriving instance Show (HExpr f fase)
 
 class NaarFase (a :: Nat -> Nat -> *) where
@@ -111,7 +115,9 @@ instance NaarFase HExpr where
     naarfase (HInfixOp x) = HInfixOp x
     naarfase (HInfixExpr x) = HInfixExpr $ naarfase' x
 
-naarfase' :: forall van naar maxfase. naar <= maxfase => FaseList HExpr van maxfase -> FaseList HExpr naar maxfase
+
+
+naarfase' :: forall van naar maxfases. naar <= Minimum maxfases => FaseList HExpr van maxfases -> FaseList HExpr naar maxfases
 naarfase' Nil = Nil
 naarfase' (a :< as) = 
     let a' = naarfase a :: HExpr naar maxfase
