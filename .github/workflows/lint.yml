@@ -1,8 +1,8 @@
 name: linten
 
 on:
-  pull_request:
-  #push:
+  #pull_request:
+  push:
 
     
 jobs:
@@ -17,5 +17,6 @@ jobs:
         uses: haskell-actions/hlint-run@v2
         with:
           path: .
-          fail-on: warning
-        #continue-on-error: true
+          #fail-on: warning
+          fail-on: suggestion
+        #continue-on-error: truename: Linting
