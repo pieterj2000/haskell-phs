@@ -28,9 +28,9 @@ instance ParseError (Token Char) Error where
   unexpectedError :: String -> String -> Error
   unexpectedError expected got = Error ("error, expected " ++ expected ++ ", got " ++ got ++ " instead")
   unconsumedError :: [Token Char] -> Error
-  unconsumedError rest = Error $ "error, not consumed all input. Remaining: '" ++ (show rest) ++ "'"
+  unconsumedError rest = Error $ "error, not consumed all input. Remaining: '" ++ show rest ++ "'"
   fixityError :: Error
-  fixityError = Error $ "fixity error"  -- TODO goed maken
+  fixityError = Error "fixity error"  -- TODO goed maken
 
 
 -- addFileLocation :: String -> Error -> Error

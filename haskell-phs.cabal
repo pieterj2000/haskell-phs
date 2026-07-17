@@ -110,9 +110,9 @@ executable phs
         Utils
         Desugar
 
+        Control.Monad.Trans.Either
         Data.Map
-
-
+        
 
         -- TODO deze moeten eruit
         --Prelude

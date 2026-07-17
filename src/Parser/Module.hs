@@ -14,6 +14,7 @@ import Data.Maybe (mapMaybe)
 import Parser.Fixity (solveFixity)
 import Desugar (desugarToCore)
 import qualified Data.Map as M
+import Control.Monad.Trans.Either (EitherT (runEitherT), lift, liftEither)
 
 
 
@@ -40,35 +41,30 @@ registerFixity vars decls =
 
 
 
--- TODO hier een fatsoenlijke monad van maken.... of ExceptT IO
+-- TODO hier een fatsoenlijke monad van maken voor errors misschien
 -- TODO die Varstore moet eigenlijk in Module verwerkt worden samen met de CExpressions
 parseFile :: String -> (forall a. (Show a) => String -> a -> IO ()) -> IO (Either Error (VarStore, Module CExpr))
-parseFile filenaam printv = do
+parseFile filenaam printv = runEitherT $ do
+    input <- lift $ readFile filenaam
     -- parse 'header', i.e. vind welke imports hij heeft
     -- parse die imports
+    -- TODO: overweeg om éérst een graaf te bouwen van files, en dan pas iedere geheel te parsen en compilen, niet hier recursief ze allemaal doen, want dan blijft alles in geheugen toch?
     -- dán pas deze zelf parsen (of misschien wel al parsen maar nog niet desugaren en derglijke)
     -- en alles desugeren en dergelijke
-    input <- readFile filenaam
-    let mast = parseModuleBody filenaam input
-    printv "input" $ input
-    printv "tokens" $ tokenize input
-    case mast of 
-        (Left e) -> pure $ Left e
-        (Right ast) -> 
-            do
-                let varinfo = varinfoDefault -- TODO 
-                printv "ast" ast
-                let varinfof = registerFixity varinfo ast
-                -- TODO fixity solven moet naar desugar!!!!
-                case solveFixity varinfof ast of
-                    (Left e) -> pure $ Left e
-                    (Right fast) -> do
-                        let core = concatMap desugarToCore fast
-                            -- TODO deze map vullen is rommelig zo, beter maken
-                            m = M.fromList [ (naam, expr) | (Decl naam expr) <- core]
-                        printv "ast na fixity" fast
-                        printv "core" core
-                        pure $ Right $ (varinfof, Module "moduleName" filenaam [] [] m)
+    lift $ printv "input" input
+    lift $ printv "tokens" $ tokenize input
+    ast <- liftEither $ parseModuleBody filenaam input
+    lift $ printv "ast" ast
+    let varinfo = varinfoDefault -- TODO 
+        varinfof = registerFixity varinfo ast
+    -- TODO fixity solven moet naar desugar!!!!
+    fast <- liftEither $ solveFixity varinfof ast
+    let core = concatMap desugarToCore fast
+        -- TODO deze map vullen is rommelig zo, beter maken
+        m = M.fromList [ (naam, expr) | (Decl naam expr) <- core]
+    lift $ printv "ast na fixity" fast
+    lift $ printv "core" core
+    pure (varinfof, Module "moduleName" filenaam [] [] m)
 
 
 

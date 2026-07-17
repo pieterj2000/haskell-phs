@@ -29,7 +29,7 @@ main = do
                     --ast = parseFile (drop 4 inputfile) input --TODO die drop 4 is nodig om src/ of app/ eruit te halen, moet later goed als je folder aware bent zeg maar
                 
                     -- TODO dit mag beter
-                    printv wat x = if (length rest > 0 && head rest == "interpreterteststand") then pure () else putStr (wat ++ ":\t") >> print x
+                    printv wat x = if not (null rest) && head rest == "interpreterteststand" then pure () else putStr (wat ++ ":\t") >> print x
                 --print textpos
                 moduleeither <- parseFile inputfile printv
                 case moduleeither of 
