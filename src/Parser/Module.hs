@@ -63,7 +63,7 @@ parseFile filenaam printv = runEitherT $ do
         -- TODO deze map vullen is rommelig zo, beter maken
         m = M.fromList [ (naam, expr) | (Decl naam expr) <- core]
     lift $ printv "ast na fixity" fast
-    lift $ printv "core" core
+    lift $ mapM_ (printv "core") core
     pure (varinfof, Module "moduleName" filenaam [] [] m)
 
 

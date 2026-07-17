@@ -15,7 +15,7 @@ predicate :: Bool -> Integer
 toint p = p 1 0
 
 main :: Integer
-main = fact 6
+main = (3 == 9) 0 1
 
 undefined :: a
 undefined = undefined

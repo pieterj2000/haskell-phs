@@ -25,7 +25,7 @@ desugarToCore (HFuncDef naam def) = singleton . Decl naam . exprToCore $ desugar
 -- TODO wat moeten we hier nog doen met typevars?
 -- TODO hoe stoppen we type in core? We stoppen nu alleen nog maar constructor-definities erin
 -- TODO ook type toevoegen aan context
-desugarToCore (HDataDef d@(DataDef naam typevars cons)) = zipWith (\index n -> Decl n $ CDataCons index d) [0..] $ map dataconsnaam cons
+desugarToCore (HDataDef d@(DataDef naam typevars cons)) = zipWith (\index n -> Decl n $ CDataCons index d) [1..] $ map dataconsnaam cons
 --desugarToCore (HTypeSig naam typ) = 
 desugarToCore (HTypeSig _ _) = [] -- TODO doen
 

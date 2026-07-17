@@ -31,7 +31,7 @@ astToLambdaCalc :: VarStore -> [Decl CExpr] -> LambdaCalc
 astToLambdaCalc ctx [] = astToLambdaCalc' ctx (CVar "main")
 astToLambdaCalc ctx (Decl naam def : rest) = astToLambdaCalc (varStoreSetDef naam def ctx) rest
 
-
+-- TODO deze functie wordt nou nergens gebruikt, en de hele scott encoding gebeurt een beetje houtje-touwtje. Misschien beter om Core ook structureel te desugaren naar lambda calculus en dergelijke
 scottEncoding :: [DataConsDef] -> [CExpr] --[Decl CExpr]
 scottEncoding cons = 
     let aantalcons = length cons
@@ -77,7 +77,7 @@ astToLambdaCalc' ctx (CVar x) = case lookup x ctx >>= varDefinition of
     Just def -> astToLambdaCalc' ctx def
 astToLambdaCalc' ctx (CDataCons index datadef) = 
     let numcons = length $ datadefconstrs datadef 
-        con = datadefconstrs datadef !! index -- TODO aanpassen dit is stom
+        con = datadefconstrs datadef !! index  -- TODO aanpassen dit is stom
     in astToLambdaCalc' ctx  $ scottEncodeCons numcons index con
 astToLambdaCalc' ctx (CCase e opties) = patternMatchToLambda ctx e opties
 
