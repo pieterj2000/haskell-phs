@@ -40,8 +40,8 @@ main = do
                             lcast = astToLambdaCalc varinfo core
                             lcastbruin = lambdaToDeBruin lcast
                             result = runLambdaCalc lcast
-                        printv "lambdacalc ast" lcast
-                        printv "debruin ast" lcastbruin
+                        --printv "lambdacalc ast" lcast
+                        --printv "debruin ast" lcastbruin
                         printv "resultaat" result
                         putStrLn $ showprettyDeBruin result
                 
