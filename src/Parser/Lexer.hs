@@ -18,6 +18,10 @@ import Utils
 
 
 
+data LexerStateFase = InComment Int | Niets | InString | InStringGap
+data LexerState i = LexerState LexerStateFase [i] [Int] [Int]
+
+
 -- TODO waarom is de rest niet allemaal [i]?
 data Token i
     = Tsymbols [i]
@@ -28,7 +32,7 @@ data Token i
     | Treserved String
     deriving (Show, Eq)
 
-tokenize :: String -> [Token Char]
+tokenize :: [Char] -> [Token Char]
 tokenize [] = []
 
 -- Integer

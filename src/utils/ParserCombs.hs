@@ -29,39 +29,38 @@ import Prelude hiding (any)
 import Data.String (IsString)
 
 import Error
+import Control.Arrow (second)
 
 -- TODO willen we een [Error] (or misschien difflist in dat geval)?
 -- (Last managed position, input) -> Either (filename -> error) ((outputvalue, in position), (next managed position, rest input))
 -- TODO pos verwerken
 -- TODO error maken zodat pos en filename vanzelf goed gaan. (Source ipv pos)
-newtype Parser i e a = Parser { runParser :: [i] -> Either e (a, [i]) }
+newtype Parser i e a = Parser { runParser :: [i] -> ([i], Either e a) }
 
 -- TODO error gooien als niet alles geparsed is!
 parseResult :: ParseError i e => Parser i e a -> [i] -> Either e a
-parseResult p input = do
-    (r, rest) <- runParser p input
-    if null rest
-        then Right r
-        else Left $ unconsumedError rest
+parseResult p input = 
+    let (rest, r) = runParser p input 
+    in if not $ null rest
+        then Left $ unconsumedError rest
+        else case r of
+            Left e -> Left e
+            Right r' -> Right r'
 
 instance Functor (Parser i e) where
     fmap :: (a -> b) -> Parser i e a -> Parser i e b
     fmap f (Parser p) = Parser $ \input ->
-        case p input of
-            Left e -> Left e
-            Right (x, rest) -> Right (f x, rest)
+        let r = p input in second (fmap f) r
 
 instance Applicative (Parser i e) where
     pure :: a -> Parser i e a
-    pure x = Parser $ \input -> Right (x, input)
+    pure x = Parser $ \input -> (input, Right x)
     (<*>) :: Parser i e (a -> b) -> Parser i e a -> Parser i e b
     af <*> ax = Parser $ \input ->
-            case runParser af input of
-              Left e          -> Left e
-              Right (f, rest) ->
-                case runParser ax rest of
-                  Left e            -> Left e
-                  Right (x, rest')  -> Right (f x, rest')
+            let (rest, ef) = runParser af input 
+            in case ef of
+                Left e -> (rest, Left e)
+                Right f -> runParser (f <$> ax) rest
 
 
 -- instance EmptyError ParseError where
@@ -79,11 +78,12 @@ instance ParseError i e => Alternative (Parser i e) where
                 --                         --TODO dit is eigenlijk Empty error op EOF, dus dat is weer iets extra,
                 --                                                 --weet nog steeds niet wanneer deze error precies zou moeten komen,
                 --                                                 -- als het ooit nuttig is het beter om hier een losse ParseEmptyEOF te maken denk ik
-                _  -> Left $ emptyError
+                _  -> (input, Left emptyError)
     (<|>) :: Parser i e a -> Parser i e a -> Parser i e a
-    l <|> r = Parser $ \input -> case runParser l input of
-                Right x -> Right x
-                Left e1  -> runParser r input
+    l <|> r = Parser $ \input ->
+            case runParser l input of
+                (rest, Right x) -> (rest, Right x)
+                (_, Left e1) -> runParser r input
 
 
 -- | expects predicate function on tokens and String describing what it expects, for error messages
@@ -94,10 +94,10 @@ satisfy p = getIf (\i -> if p i then Just i else Nothing)
 getIf :: (ParseError i e, Show i) => (i -> Maybe a) -> String -> Parser i e a
 getIf p expects = Parser $ \input ->
         case input of 
-            [] -> Left $ unexpectedError expects "end of tokens"
+            [] -> (input, Left $ unexpectedError expects "end of tokens")
             (c:xs) -> case p c of
-                Just a -> Right (a, xs)
-                Nothing -> Left $ unexpectedError expects (show c)
+                Just a -> (xs, Right a)
+                Nothing -> (xs, Left $ unexpectedError expects (show c))
 
 
 -- | expects predicate function on tokens and String describing what it expects, for error messages
