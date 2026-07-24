@@ -41,6 +41,15 @@ tokenize spul | isnewline = Tspecialsymb ';' : tokenize rest
 -- Whitespace
 tokenize spul | isWhiteCharNoNewLine (head spul) = tokenize $ dropWhile isWhiteCharNoNewLine spul
 
+-- Comment single line
+tokenize spul@(s1:s2:rest) | s1 == '-' && s2 == '-' && restgeencomment = tokenize $ nextLine rest'
+    where
+        rest' = dropWhile (=='-') rest
+        restgeencomment = null rest' || (not . isSymbol $ head rest')
+
+
+
+
 -- Symbols (and special symbols)
 tokenize (s:rest) | isSpecial s = Tspecialsymb s : tokenize rest
 tokenize spul | isSymbol (head spul) = let (symbols, rest) = span isSymbol spul in Tsymbols symbols : tokenize rest
@@ -73,6 +82,12 @@ isNewLine ('\r' : rest) = (True, rest)
 isNewLine ('\f' : rest) = (True, rest)
 isNewLine ('\n' : rest) = (True, rest)
 isNewLine rest = (False, rest)
+
+nextLine :: String -> String
+nextLine [] = []
+nextLine spul = case isNewLine spul of
+    (True, rest) -> rest
+    (False, _) -> nextLine $ tail spul
 
 
 isWhiteChar :: Char -> Bool

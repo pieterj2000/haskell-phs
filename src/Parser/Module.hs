@@ -43,6 +43,7 @@ registerFixity vars decls =
 
 -- TODO hier een fatsoenlijke monad van maken voor errors misschien
 -- TODO die Varstore moet eigenlijk in Module verwerkt worden samen met de CExpressions
+-- TODO die loggen beter verwerkenn....
 parseFile :: String -> (forall a. (Show a) => String -> a -> IO ()) -> IO (Either Error (VarStore, Module CExpr))
 parseFile filenaam printv = runEitherT $ do
     input <- lift $ readFile filenaam
@@ -52,9 +53,12 @@ parseFile filenaam printv = runEitherT $ do
     -- dán pas deze zelf parsen (of misschien wel al parsen maar nog niet desugaren en derglijke)
     -- en alles desugeren en dergelijke
     lift $ printv "input" input
+    lift $ printv "" $ replicate 70 '#'
     lift $ printv "tokens" $ tokenize input
+    lift $ printv "" $ replicate 70 '#'
     ast <- liftEither $ parseModuleBody filenaam input
     lift $ printv "ast" ast
+    lift $ printv "" $ replicate 70 '#'
     let varinfo = varinfoDefault -- TODO 
         varinfof = registerFixity varinfo ast
     -- TODO fixity solven moet naar desugar!!!!
