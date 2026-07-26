@@ -6,20 +6,23 @@ module Parser.Lexer (
 -- , varTP
 --  runParserLex,
 --  SString) where
-    Token(..)
+    Token(..),
+    tokenize'
 ) where
 
 import Defs.ExprDefs
 
-import Data.Char (isAlphaNum, isUpper, isLower, isDigit, digitToInt)
+import Data.Char (isAlphaNum, isUpper, isLower, isDigit, digitToInt, ord, chr, isOctDigit, isHexDigit, isAsciiUpper)
 import Control.Applicative (many, Alternative ((<|>), some), optional)
 import Data.Functor (($>))
 import Utils
+import Error (Error, ParseError (unexpectedError))
+import qualified ParserCombs as P
 
 
 
-data LexerStateFase = InComment Int | Niets | InString | InStringGap
-data LexerState i = LexerState LexerStateFase [i] [Int] [Int]
+data LexerStateFase = InComment Int | Niets -- | InString String | InStringGap
+data LexerState i = LexerState LexerStateFase [i] [Int]
 
 
 -- TODO waarom is de rest niet allemaal [i]?
@@ -30,10 +33,125 @@ data Token i
     | Tvarid String
     | Tconsid String
     | Treserved String
+    | TChar Char
+    | TString String
     deriving (Show, Eq)
 
+
 tokenize :: [Char] -> [Token Char]
-tokenize [] = []
+--tokenize = undefined
+
+
+
+tokenize' :: LexerState Char -> Either Error [Token Char]
+
+-- Alles als we in comment zitten
+tokenize' (LexerState (InComment n) spul layouts) | take 2 spul == "{-" = tokenize' (LexerState (InComment $ n+1) (drop 2 spul) layouts)
+tokenize' (LexerState (InComment n) spul layouts) | take 2 spul == "-}" = if n == 1 
+                                    then tokenize' (LexerState Niets (drop 2 spul) layouts)
+                                    else tokenize' (LexerState (InComment $ n-1) (drop 2 spul) layouts)
+tokenize' (LexerState (InComment n) [] layouts) = Right []    -- TODO willen we hier error gooien? Hebben een comment die niet afgemaakt is
+                                                        -- TODO moeten we de layouts niet nog legen?
+tokenize' (LexerState (InComment n) spul layouts) = tokenize' (LexerState (InComment n) (tail spul) layouts)
+
+
+-- Alles als we in een string zitten
+--tokenize' (LexerState (InString _) [] layouts) = Left $ unexpectedError "end of string (\")" "end of file"-- TODO beter error
+--tokenize' (LexerState (InString lit) ('"':rest) layouts) = (TString (reverse lit) :) <$> tokenize' (LexerState Niets rest layouts)
+--tokenize' (LexerState (InString lit) ('"':rest) layouts) = (TString (reverse lit) :) <$> tokenize' (LexerState Niets rest layouts)
+
+tokenize' (LexerState Niets [] layouts) = undefined -- TODO layout
+
+
+-- strings parsen
+tokenize' (LexerState Niets ('"' : rest) layouts) = do
+                    (lit, rest') <- stringParse rest
+                    toekomst <- tokenize' (LexerState Niets rest' layouts)
+                    pure $ TString lit : toekomst
+
+-- chars parsen
+tokenize' (LexerState Niets ('\'' : rest) layouts) = 
+                    let (rest', result) = P.runParser charP rest
+                    in do
+                        r <- result
+                        toekomst <- tokenize' (LexerState Niets rest' layouts)
+                        pure $ TChar r : toekomst
+
+
+
+-- Integers parsen  -- TODO floats
+tokenize' (LexerState Niets spul layouts) | isDigit (head spul) = 
+                    let (rest, result) = P.runParser intP spul
+                    in case result of
+                        Left e -> error $ "parsing int, dit zou niet moeten kunnen gebeuren, error: " ++ show e ++ " in string " ++ spul
+                        Right r -> (Tinteger r :) <$> tokenize' (LexerState Niets rest layouts)
+
+
+-- Newline -- TODO layout fixen
+tokenize' (LexerState Niets spul layouts) | isnewline = (Tspecialsymb ';' :) <$>  tokenize' (LexerState Niets rest layouts)
+    where (isnewline, rest) = isNewLine spul
+
+
+-- Whitespace
+tokenize' (LexerState Niets spul layouts) | isWhiteCharNoNewLine (head spul) = tokenize' $ LexerState Niets (dropWhile isWhiteCharNoNewLine spul) layouts
+
+-- Comment single line -- TODO hier layout newline voor gebruiken? Nee denk dat dit prima is, want we snijden alles af tot de nieuwline (zie nextLine)
+tokenize' (LexerState Niets spul@(s1:s2:rest) layouts) | s1 == '-' && s2 == '-' && restgeencomment = tokenize' $ LexerState Niets (nextLine rest') layouts
+    where
+        rest' = dropWhile (=='-') rest
+        restgeencomment = null rest' || (not . isSymbol $ head rest')
+
+-- Symbols (and special symbols)
+tokenize' (LexerState Niets (s:rest) layouts)   | isSpecial s = (Tspecialsymb s :) <$> tokenize' (LexerState Niets rest layouts)
+tokenize' (LexerState Niets spul@(s:_) layouts) | isSymbol s = let (symbols, rest) = span isSymbol spul in (Tsymbols symbols :) <$> tokenize' (LexerState Niets rest layouts)
+
+-- varid (en reservedid)
+tokenize' (LexerState Niets spul@(s:rest) layouts) | isLower s || s=='_' = 
+    let (varid, rest) = span (\c -> isAlphaNum c || (c=='_') || (c=='\'')) spul 
+        toekomst = tokenize' $ LexerState Niets rest layouts
+    in if isReserved varid
+        then (Treserved varid :) <$> toekomst -- TODO willen we dit niet gewoon als Tvarid doorgooien?
+        else (Tvarid varid :) <$> toekomst
+
+-- consid
+tokenize' (LexerState Niets spul@(s:rest) layouts) | isUpper s = let (consid, rest) = span (\c -> isAlphaNum c || (c=='_') || (c=='\'')) spul in (Tconsid consid :) <$> tokenize' (LexerState Niets rest layouts)
+
+
+-- Snappen we niet
+tokenize' (LexerState Niets spul layouts) = Left $ unexpectedError "iets wat we snappen" spul -- TODO hier betere error maken
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 -- Integer
 tokenize spul | isDigit (head spul) = let (digits, rest) = span isDigit spul in Tinteger (digitsToInt digits) : tokenize rest
@@ -74,10 +192,146 @@ tokenize spul = [Tsymbols $ "error: resterende tokens die we niet snappen: '" ++
 
 
 
+
+
+
+
+
+
+
+-----------------------------------------------------------------
+
+-- De openende " zit al in de lexer, de afsluitende zit hierin
+charP :: P.Parser Char Error Char
+charP = (   (P.satisfy isGraphicNietQuotesBackslash "character") 
+        <|> (P.token ' ') 
+        <|> (P.token '"') 
+        <|> escapeP
+        ) <* P.token '\''
+
+-- input -> Either error (geparste string literal, rest of tokens)
+stringParse :: [Char] -> Either Error (String, [Char])
+stringParse spul = 
+        let (rest, result) = P.runParser stringP spul
+        in case result of 
+            Left e -> Left e
+            Right r -> Right (r, rest)
+
+-- De openende " zit al in de lexer, de afsluitende zit hierin
+stringP :: P.Parser Char Error [Char]
+stringP = concat <$> many 
+                (   (pure <$> P.satisfy isGraphicNietQuotesBackslash "character") 
+                <|> stringGapP 
+                <|> (pure <$> P.token ' ') 
+                <|> (pure <$> P.token '\'') 
+                <|> (pure <$> escapeP) 
+                <|> (P.tokens "\\&" *> pure [])
+                ) <* P.token '"'
+
+stringGapP :: P.Parser Char Error [Char]
+stringGapP = P.token '\\' *> many (P.satisfy isWhiteChar "whitespace") *> P.token '\\' *> pure []
+
+escapeP :: P.Parser Char Error Char
+escapeP = P.token '\\' *>
+            (   P.getIf escapeChar "escape character"
+            <|> (P.token '^' *> P.getIf escapeCharHoedje "escape character")
+            <|> escapeAsciiAnders
+            <|> (chr . fromInteger <$> decimalP)
+            <|> (P.token 'o' *> (chr . fromInteger <$> octalP))
+            <|> (P.token 'x' *> (chr . fromInteger <$> hexaP))
+            )
+
+escapeChar :: Char -> Maybe Char
+escapeChar 'a' = Just $ chr 7
+escapeChar 'b' = Just $ chr 8
+escapeChar 'f' = Just $ chr 12
+escapeChar 'n' = Just $ chr 10
+escapeChar 'r' = Just $ chr 13
+escapeChar 't' = Just $ chr 9
+escapeChar 'v' = Just $ chr 11
+escapeChar '\\' = Just $ '\\'
+escapeChar '"' = Just $ '"'
+escapeChar '\'' = Just $ '\''
+escapeChar _ = Nothing
+
+escapeCharHoedje :: Char -> Maybe Char
+escapeCharHoedje c | isAsciiUpper c = Just . chr $ ord c - ord 'A' + 1
+escapeCharHoedje '@' = Just $ chr 0
+escapeCharHoedje '[' = Just $ chr 27
+escapeCharHoedje '\\' = Just $ chr 28
+escapeCharHoedje ']' = Just $ chr 29
+escapeCharHoedje '^' = Just $ chr 30
+escapeCharHoedje '_' = Just $ chr 31
+escapeCharHoedje _ = Nothing
+
+escapeAsciiAnders :: P.Parser Char Error Char
+escapeAsciiAnders = 
+        let num =   (P.tokens "NUL" *> pure 0)
+                <|> (P.tokens "SOH" *> pure 1)
+                <|> (P.tokens "STX" *> pure 2)
+                <|> (P.tokens "ETX" *> pure 3)
+                <|> (P.tokens "EOT" *> pure 4)
+                <|> (P.tokens "ENQ" *> pure 5)
+                <|> (P.tokens "ACK" *> pure 6)
+                <|> (P.tokens "BEL" *> pure 7)
+                <|> (P.tokens "BS" *> pure 8)
+                <|> (P.tokens "HT" *> pure 9)
+                <|> (P.tokens "LF" *> pure 10)
+                <|> (P.tokens "VT" *> pure 11)
+                <|> (P.tokens "FF" *> pure 12)
+                <|> (P.tokens "CR" *> pure 13)
+                <|> (P.tokens "SO" *> pure 14)
+                <|> (P.tokens "SI" *> pure 15)
+                <|> (P.tokens "DLE" *> pure 16)
+                <|> (P.tokens "DC1" *> pure 17)
+                <|> (P.tokens "DC2" *> pure 18)
+                <|> (P.tokens "DC3" *> pure 19)
+                <|> (P.tokens "DC4" *> pure 20)
+                <|> (P.tokens "NAK" *> pure 21)
+                <|> (P.tokens "SYN" *> pure 22)
+                <|> (P.tokens "ETB" *> pure 23)
+                <|> (P.tokens "CAN" *> pure 24)
+                <|> (P.tokens "EM" *> pure 25)
+                <|> (P.tokens "SUB" *> pure 26)
+                <|> (P.tokens "ESC" *> pure 27)
+                <|> (P.tokens "FS" *> pure 28)
+                <|> (P.tokens "GS" *> pure 29)
+                <|> (P.tokens "RS" *> pure 30)
+                <|> (P.tokens "US" *> pure 31)
+                <|> (P.tokens "SP" *> pure 32)
+                <|> (P.tokens "DEL" *> pure 127)
+        in chr <$> num
+        
+
+
+
+
+intP :: P.Parser Char Error Integer
+intP =  ( (P.tokens "0o" <|> P.tokens "0O") *> octalP )
+    <|> ( (P.tokens "0x" <|> P.tokens "0X") *> hexaP )
+    <|> decimalP
+
+
+
+
+decimalP, octalP, hexaP :: P.Parser Char Error Integer
+decimalP = digitsToInt <$> some (P.satisfy isDigit "digit")
+octalP = digitsToIntBase 8 <$> some (P.satisfy isOctDigit "digit")
+hexaP = digitsToIntBase 16 <$> some (P.satisfy isHexDigit "digit")
+
+
+
+
+
 ------------------------------------------
 
+digitsToIntBase :: Integer -> String -> Integer
+digitsToIntBase base = foldl' (\acc el -> acc*base + toInteger el) 0 . map digitToInt
+
 digitsToInt :: String -> Integer
-digitsToInt = foldl' (\acc el -> acc*10 + toInteger el) 0 . map digitToInt
+digitsToInt = digitsToIntBase 10
+
+
 
 
 isNewLine :: String -> (Bool, String)
@@ -87,10 +341,11 @@ isNewLine ('\f' : rest) = (True, rest)
 isNewLine ('\n' : rest) = (True, rest)
 isNewLine rest = (False, rest)
 
+-- | is inclusief de nieuwline
 nextLine :: String -> String
 nextLine [] = []
 nextLine spul = case isNewLine spul of
-    (True, rest) -> rest
+    (True, rest) -> spul
     (False, _) -> nextLine $ tail spul
 
 
@@ -147,6 +402,14 @@ isSymbol '-'    = True
 isSymbol '~'    = True
 isSymbol ':'    = True
 isSymbol _      = False
+
+
+-- Graphic = small (= ascsmall, unismall, _), large (asclarge, unilarge), digit, symbol, special, ', "
+isGraphicNietQuotesBackslash :: Char -> Bool
+isGraphicNietQuotesBackslash '\'' = False
+isGraphicNietQuotesBackslash '"' = False
+isGraphicNietQuotesBackslash '\\' = False
+isGraphicNietQuotesBackslash c = isAlphaNum c || isSpecial c || isDigit c || isSymbol c || c == '_'
 
 
 
@@ -533,3 +796,4 @@ isReserved _ = False
 --                         Right r@(((t,s),pos), _) -> if '.' `elem` s 
 --                                 then Left (ParseError (ParseUnexpected s "non-qualified variable") pos)
 --                                 else Right r
+

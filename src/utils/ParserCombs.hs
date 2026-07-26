@@ -21,6 +21,7 @@ module ParserCombs (
     someSep',
     manySep,
     someSep2,
+    tokens,
 ) where
 
 import Control.Applicative (Alternative (..))
@@ -38,7 +39,7 @@ import Control.Arrow (second)
 newtype Parser i e a = Parser { runParser :: [i] -> ([i], Either e a) }
 
 -- TODO error gooien als niet alles geparsed is!
-parseResult :: ParseError i e => Parser i e a -> [i] -> Either e a
+parseResult :: Show i => ParseError e => Parser i e a -> [i] -> Either e a
 parseResult p input = 
     let (rest, r) = runParser p input 
     in if not $ null rest
@@ -71,7 +72,7 @@ instance Applicative (Parser i e) where
 --     emptyError :: Error
 --     emptyError = ParseError ParseEmpty (Source "ergens" 0 0)
 
-instance ParseError i e => Alternative (Parser i e) where
+instance ParseError e => Alternative (Parser i e) where
     empty :: Parser i e a
     empty = Parser $ \input -> case input of
                 -- [] -> Left $ emptyError -- TODO error opnieuw doen
@@ -87,11 +88,11 @@ instance ParseError i e => Alternative (Parser i e) where
 
 
 -- | expects predicate function on tokens and String describing what it expects, for error messages
-satisfy :: (ParseError i e, Show i) => (i -> Bool) -> String -> Parser i e i
+satisfy :: (ParseError e, Show i) => (i -> Bool) -> String -> Parser i e i
 satisfy p = getIf (\i -> if p i then Just i else Nothing)
 
 -- | expects function on tokens and String describing what it expects, for error messages
-getIf :: (ParseError i e, Show i) => (i -> Maybe a) -> String -> Parser i e a
+getIf :: (ParseError e, Show i) => (i -> Maybe a) -> String -> Parser i e a
 getIf p expects = Parser $ \input ->
         case input of 
             [] -> (input, Left $ unexpectedError expects "end of tokens")
@@ -119,8 +120,11 @@ getIf p expects = Parser $ \input ->
 --                 Left e -> Left $ ParseError e pos
 
 
-token :: (Show i, Eq i, ParseError i e) => i -> Parser i e i
+token :: (Show i, Eq i, ParseError e) => i -> Parser i e i
 token c = satisfy (==c) (show c)
+
+tokens :: (Show i, Eq i, ParseError e) => [i] -> Parser i e [i]
+tokens = traverse token
 
 -- string :: (Show i, Eq i) => [i] -> Parser i ParseError [i]
 -- string = traverse char
@@ -142,20 +146,20 @@ between l r p = l *> p <* r
 --         Right x -> Right x
 
 
-someSep :: ParseError i e => Parser i e a -> Parser i e b -> Parser i e [a]
+someSep :: ParseError e => Parser i e a -> Parser i e b -> Parser i e [a]
 someSep ding sep = (:) <$> ding <*> ( (sep *> someSep ding sep) <|> pure [] )
 
 -- | zelfde als someSep, maar dan moeten er minstens twee zijn, dus minstens een separator
-someSep2 :: ParseError i e => Parser i e a -> Parser i e b -> Parser i e [a]
+someSep2 :: ParseError e => Parser i e a -> Parser i e b -> Parser i e [a]
 someSep2 ding sep = (:) <$> ding <*> (sep *> someSep ding sep)
 
 -- | many, maar dan geseparate door een separator. In het geval van nul of één dingen geparsed, moeten er géén seperators zijn
-manySep :: ParseError i e => Parser i e a -> Parser i e b -> Parser i e [a]
+manySep :: ParseError e => Parser i e a -> Parser i e b -> Parser i e [a]
 manySep ding sep = someSep ding sep <|> pure []
 
 -- | zelfde als someSep, maar dan mag de seperator meerdere keren tussen twee dingen zitten, en mag ook de 
 -- input beginnen en eindigen met een of meerdere separators
-someSep' :: ParseError i e => Parser i e a -> Parser i e b -> Parser i e [a]
+someSep' :: ParseError e => Parser i e a -> Parser i e b -> Parser i e [a]
 someSep' ding sep = many sep *> someSep ding (some sep) <* many sep
 
 

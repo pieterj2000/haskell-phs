@@ -7,27 +7,27 @@ module Error (
 ) where
 
 
-import Parser.Lexer
+-- import Parser.Lexer
 
 -- TODO, moet dit niet geparameteriseerd worden met input type (dus [Token] ipv String)
-class ParseError i e | e -> i where
+class ParseError e where
     -- | to be used in empty alternative instance
     emptyError :: e
     -- | expected -> got -> e
     unexpectedError :: String -> String -> e
     -- | unconsumed input -> e
-    unconsumedError :: [i] -> e
+    unconsumedError :: Show i => [i] -> e
     fixityError :: e
 
 
 
 
-instance ParseError (Token Char) Error where
+instance ParseError Error where
   emptyError :: Error
   emptyError = Error "error: empty alternative used"
   unexpectedError :: String -> String -> Error
   unexpectedError expected got = Error ("error, expected " ++ expected ++ ", got " ++ got ++ " instead")
-  unconsumedError :: [Token Char] -> Error
+  unconsumedError :: Show a => [a] -> Error
   unconsumedError rest = Error $ "error, not consumed all input. Remaining: '" ++ show rest ++ "'"
   fixityError :: Error
   fixityError = Error "fixity error"  -- TODO goed maken
