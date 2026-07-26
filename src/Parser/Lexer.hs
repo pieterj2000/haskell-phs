@@ -151,7 +151,7 @@ tokenize' (LexerState Niets spul layouts) = Left $ unexpectedError "iets wat we 
 
 
 
-
+tokenize [] = []
 
 -- Integer
 tokenize spul | isDigit (head spul) = let (digits, rest) = span isDigit spul in Tinteger (digitsToInt digits) : tokenize rest
