@@ -1,6 +1,7 @@
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE RankNTypes #-}
 module ParserCombs (
-    Parser(..),
+    Parser,
     -- TParser,
     token,
     ParseError(..),
@@ -22,6 +23,7 @@ module ParserCombs (
     manySep,
     someSep2,
     tokens,
+    runParser
 ) where
 
 import Control.Applicative (Alternative (..))
@@ -36,7 +38,14 @@ import Control.Arrow (second)
 -- (Last managed position, input) -> Either (filename -> error) ((outputvalue, in position), (next managed position, rest input))
 -- TODO pos verwerken
 -- TODO error maken zodat pos en filename vanzelf goed gaan. (Source ipv pos)
-newtype Parser i e a = Parser { runParser :: [i] -> ([i], Either e a) }
+-- | getToken -> getLayoutToken -> (newState, result)
+newtype Parser i e a = Parser { unParser :: forall s. (s -> Maybe (s, i)) -> (s -> Maybe (s,i)) -> s -> (s, Either e a) }
+
+runParser :: Parser i e a -> [i] -> ([i], Either e a) 
+runParser p spul = unParser p getchar (const Nothing) spul
+        where 
+            getchar [] = Nothing
+            getchar (x:xs) = Just (xs, x)
 
 -- TODO error gooien als niet alles geparsed is!
 parseResult :: Show i => ParseError e => Parser i e a -> [i] -> Either e a
@@ -50,18 +59,18 @@ parseResult p input =
 
 instance Functor (Parser i e) where
     fmap :: (a -> b) -> Parser i e a -> Parser i e b
-    fmap f (Parser p) = Parser $ \input ->
-        let r = p input in second (fmap f) r
+    fmap f (Parser p) = Parser $ \a b input ->
+        let r = p a b input in second (fmap f) r
 
 instance Applicative (Parser i e) where
     pure :: a -> Parser i e a
-    pure x = Parser $ \input -> (input, Right x)
+    pure x = Parser $ \a b input -> (input, Right x)
     (<*>) :: Parser i e (a -> b) -> Parser i e a -> Parser i e b
-    af <*> ax = Parser $ \input ->
-            let (rest, ef) = runParser af input 
+    af <*> ax = Parser $ \a b input ->
+            let (rest, ef) = unParser af a b input 
             in case ef of
                 Left e -> (input, Left e)
-                Right f -> runParser (f <$> ax) rest
+                Right f -> unParser (f <$> ax) a b rest
 
 
 -- instance EmptyError ParseError where
@@ -74,17 +83,17 @@ instance Applicative (Parser i e) where
 
 instance ParseError e => Alternative (Parser i e) where
     empty :: Parser i e a
-    empty = Parser $ \input -> case input of
+    empty = Parser $ \a b input -> case input of
                 -- [] -> Left $ emptyError -- TODO error opnieuw doen
                 --                         --TODO dit is eigenlijk Empty error op EOF, dus dat is weer iets extra,
                 --                                                 --weet nog steeds niet wanneer deze error precies zou moeten komen,
                 --                                                 -- als het ooit nuttig is het beter om hier een losse ParseEmptyEOF te maken denk ik
                 _  -> (input, Left emptyError)
     (<|>) :: Parser i e a -> Parser i e a -> Parser i e a
-    l <|> r = Parser $ \input ->
-            case runParser l input of
+    l <|> r = Parser $ \a b input ->
+            case unParser l a b input of
                 (rest, Right x) -> (rest, Right x)
-                (_, Left e1) -> runParser r input
+                (_, Left e1) -> unParser r a b input
 
 
 -- | expects predicate function on tokens and String describing what it expects, for error messages
@@ -93,12 +102,13 @@ satisfy p = getIf (\i -> if p i then Just i else Nothing)
 
 -- | expects function on tokens and String describing what it expects, for error messages
 getIf :: (ParseError e, Show i) => (i -> Maybe a) -> String -> Parser i e a
-getIf p expects = Parser $ \input ->
-        case input of 
-            [] -> (input, Left $ unexpectedError expects "end of tokens")
-            (c:xs) -> case p c of
-                Just a -> (xs, Right a)
-                Nothing -> (xs, Left $ unexpectedError expects (show c))
+getIf p expects = Parser $ \getchar getLayout input ->
+        case getchar input of 
+            Nothing -> (input, Left $ unexpectedError expects "end of tokens")
+            --(c:xs) -> case p c of
+            Just (rest, c) -> case p c of
+                Just a -> (rest, Right a)
+                Nothing -> (input, Left $ unexpectedError expects (show c))
 
 
 -- | expects predicate function on tokens and String describing what it expects, for error messages
