@@ -9,7 +9,7 @@ import Defs.ExprDefs (Module (Module), VarStore, VarInfo (..), FixityType (..), 
 import Error (Error (..))
 import Defs.Haskell (HDecl (..))
 import Parser.Parser (parseModuleBody)
-import Parser.Lexer (tokenize)
+import Parser.Lexer (tokenize, tokenize'')
 import Data.Maybe (mapMaybe)
 import Parser.Fixity (solveFixity)
 import Desugar (desugarToCore)
@@ -54,7 +54,9 @@ parseFile filenaam printv = runEitherT $ do
     -- en alles desugeren en dergelijke
     lift $ printv "input" input
     lift $ printv "" $ replicate 70 '#'
-    lift $ printv "tokens" $ tokenize input
+    --lift $ printv "tokens" $ tokenize input
+    tokens <- liftEither $ tokenize'' input 
+    lift $ printv "tokens" tokens
     lift $ printv "" $ replicate 70 '#'
     ast <- liftEither $ parseModuleBody filenaam input
     lift $ printv "ast" ast

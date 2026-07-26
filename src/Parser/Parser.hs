@@ -22,6 +22,7 @@ import Parser.Fixity
 import Error
 import Data.List (singleton, foldl1')
 import Defs.Common (Type(..))
+import Control.Monad ((<=<))
 
 
 
@@ -34,7 +35,8 @@ type P = P.Parser (Token Char) Error
 
 -- TODO filename in error gooien
 parseModuleBody :: String -> String -> Either Error [HDecl]
-parseModuleBody filename = P.parseResult topdecls . tokenize
+--parseModuleBody filename = P.parseResult topdecls <=< tokenize''
+parseModuleBody filename = P.parseResult topdecls <=< tokenize''
 
 
 topdecls :: P [HDecl] 

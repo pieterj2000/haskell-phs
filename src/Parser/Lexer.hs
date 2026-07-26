@@ -7,7 +7,8 @@ module Parser.Lexer (
 --  runParserLex,
 --  SString) where
     Token(..),
-    tokenize'
+    tokenize',
+    tokenize''
 ) where
 
 import Defs.ExprDefs
@@ -42,8 +43,15 @@ tokenize :: [Char] -> [Token Char]
 --tokenize = undefined
 
 
+tokenize'' :: String -> Either Error [Token Char]
+tokenize'' spul = tokenize' (LexerState Niets spul [])
+
 
 tokenize' :: LexerState Char -> Either Error [Token Char]
+
+
+tokenize' (LexerState Niets [] layouts) = Right [] -- TODO layout
+
 
 -- Alles als we in comment zitten
 tokenize' (LexerState (InComment n) spul layouts) | take 2 spul == "{-" = tokenize' (LexerState (InComment $ n+1) (drop 2 spul) layouts)
@@ -60,7 +68,6 @@ tokenize' (LexerState (InComment n) spul layouts) = tokenize' (LexerState (InCom
 --tokenize' (LexerState (InString lit) ('"':rest) layouts) = (TString (reverse lit) :) <$> tokenize' (LexerState Niets rest layouts)
 --tokenize' (LexerState (InString lit) ('"':rest) layouts) = (TString (reverse lit) :) <$> tokenize' (LexerState Niets rest layouts)
 
-tokenize' (LexerState Niets [] layouts) = undefined -- TODO layout
 
 
 -- strings parsen
@@ -115,6 +122,8 @@ tokenize' (LexerState Niets spul@(s:rest) layouts) | isLower s || s=='_' =
 
 -- consid
 tokenize' (LexerState Niets spul@(s:rest) layouts) | isUpper s = let (consid, rest) = span (\c -> isAlphaNum c || (c=='_') || (c=='\'')) spul in (Tconsid consid :) <$> tokenize' (LexerState Niets rest layouts)
+
+
 
 
 -- Snappen we niet
