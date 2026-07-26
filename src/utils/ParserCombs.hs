@@ -60,7 +60,7 @@ instance Applicative (Parser i e) where
     af <*> ax = Parser $ \input ->
             let (rest, ef) = runParser af input 
             in case ef of
-                Left e -> (rest, Left e)
+                Left e -> (input, Left e)
                 Right f -> runParser (f <$> ax) rest
 
 
