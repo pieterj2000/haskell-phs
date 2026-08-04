@@ -19,11 +19,15 @@ import Data.Functor (($>))
 import Utils
 import Error (Error, ParseError (unexpectedError))
 import qualified ParserCombs as P
+import Data.Maybe (mapMaybe)
 
 
 
-data LexerStateFase = InComment Int | Niets -- | InString String | InStringGap
-data LexerState i = LexerState LexerStateFase [i] [Int]
+data LexerStateFase = InComment Int String | Niets -- | InString String | InStringGap
+data LayoutFase = InsertNiets | InsertContext | InsertIndent
+    deriving Eq
+-- | LexerState fase line col input layoutfase layoutcontexts
+data LexerState i = LexerState LexerStateFase Int Int [i] LayoutFase
 
 
 -- TODO waarom is de rest niet allemaal [i]?
@@ -38,29 +42,73 @@ data Token i
     | TString String
     deriving (Show, Eq)
 
+data LToken = Token (Token Char) | Indent Int | Context Int
+
+
+
+doeLayout :: [LToken] -> [Token Char]
+doeLayout = mapMaybe (\t -> case t of
+                    Token t -> Just t
+                    _ -> Nothing) 
+
 
 tokenize :: [Char] -> [Token Char]
 --tokenize = undefined
 
 
 tokenize'' :: String -> Either Error [Token Char]
-tokenize'' spul = tokenize' (LexerState Niets spul [])
+tokenize'' spul = doeLayout <$> tokenize' (LexerState Niets 1 1 spul InsertNiets)
 
 
-tokenize' :: LexerState Char -> Either Error [Token Char]
+tokenize' :: LexerState Char -> Either Error [LToken]
 
 
-tokenize' (LexerState Niets [] layouts) = Right [] -- TODO layout
+tokenize' (LexerState Niets col line [] InsertContext) = Right [Context 0] 
+tokenize' (LexerState Niets col line [] _) = Right []
+
+
+-- Newline
+tokenize' (LexerState Niets col line spul layout) | isnewline = tokenize' $ LexerState Niets 1 (line + 1) rest layout'
+    where 
+        (isnewline, rest) = isNewLine spul
+        layout' = if layout == InsertContext then InsertContext else InsertIndent
+
 
 
 -- Alles als we in comment zitten
-tokenize' (LexerState (InComment n) spul layouts) | take 2 spul == "{-" = tokenize' (LexerState (InComment $ n+1) (drop 2 spul) layouts)
-tokenize' (LexerState (InComment n) spul layouts) | take 2 spul == "-}" = if n == 1 
-                                    then tokenize' (LexerState Niets (drop 2 spul) layouts)
-                                    else tokenize' (LexerState (InComment $ n-1) (drop 2 spul) layouts)
-tokenize' (LexerState (InComment n) [] layouts) = Right []    -- TODO willen we hier error gooien? Hebben een comment die niet afgemaakt is
-                                                        -- TODO moeten we de layouts niet nog legen?
-tokenize' (LexerState (InComment n) spul layouts) = tokenize' (LexerState (InComment n) (tail spul) layouts)
+tokenize' (LexerState (InComment n comment) col line spul layouts) | take 2 spul == "{-" = tokenize' (LexerState (InComment (n+1) $ "-}" ++ comment) col line (drop 2 spul) layouts)
+tokenize' (LexerState (InComment n comment) col line spul layouts) | take 2 spul == "-}" = if n > 1 
+                                    then tokenize' (LexerState (InComment (n-1) $ "{-" ++ comment) col line (drop 2 spul) layouts)
+                                    else
+                                        let (col', line') = calcPos col line $ reverse comment
+                                        in tokenize' (LexerState Niets col' line' (drop 2 spul) layouts)
+                                            -- TODO willen we hier error gooien? Kunnen ook gewoon de sluitende dingen impliciet toevoegen
+tokenize' (LexerState (InComment n comment) col line [] layouts) = Left $ unexpectedError "closing comment \"-}\"" "end of file" 
+tokenize' (LexerState (InComment n comment) col line (x:xs) layouts) = tokenize' (LexerState (InComment n $ x : comment) col line xs layouts)
+
+-- Beginnen met comment als we er niet in zitten
+tokenize' (LexerState Niets col line spul layoutstate) | start && nietlang = tokenize' (LexerState (InComment 1 "-}") col line (drop 2 spul) layoutstate)
+            where
+                start = take 2 spul == "{-"
+                nietlang = (drop 2 $ take 3 spul) /= "#"
+
+
+-- Whitespace
+tokenize' (LexerState Niets col line spul layouts) | isWhiteCharNoNewLine (head spul) = 
+            let (white, rest) = span isWhiteCharNoNewLine spul
+                (col', line') = calcPos col line white
+            in tokenize' $ LexerState Niets col' line' rest layouts
+
+-- Comment single line -- TODO hier layout newline voor gebruiken? Nee denk dat dit prima is, want we snijden alles af tot de nieuwline (zie nextLine)
+-- we herbruiken hier col en line zonder nieuw te berekenen, aangezien de eerstvolgende token gegarandeerd een newline is die hem toch weer reset naar line+1 en 1
+tokenize' (LexerState Niets col line spul@(s1:s2:rest) layoutstate) | s1 == '-' && s2 == '-' && restgeencomment = tokenize' $ LexerState Niets col line (nextLine rest') layoutstate
+    where
+        rest' = dropWhile (=='-') rest
+        restgeencomment = null rest' || (not . isSymbol $ head rest')
+
+
+
+
 
 
 -- Alles als we in een string zitten
@@ -69,65 +117,72 @@ tokenize' (LexerState (InComment n) spul layouts) = tokenize' (LexerState (InCom
 --tokenize' (LexerState (InString lit) ('"':rest) layouts) = (TString (reverse lit) :) <$> tokenize' (LexerState Niets rest layouts)
 
 
+-- TODODOODOD NU HIER DOEN: HIERZO INDENTS EN LAYOUTS INVOEGEN AFHANKELIJK VAN LAYOUTSTATE EN DAN PATTERN MATCHEN OP ALLE 'ECHTE' LEXEMES HIERONDER, ALLE LAYOUT EN 'NEP' LEXEMES HIERBOVEN
 
--- strings parsen
-tokenize' (LexerState Niets ('"' : rest) layouts) = do
-                    (lit, rest') <- stringParse rest
-                    toekomst <- tokenize' (LexerState Niets rest' layouts)
-                    pure $ TString lit : toekomst
 
 -- chars parsen
-tokenize' (LexerState Niets ('\'' : rest) layouts) = 
-                    let (rest', result) = P.runParser charP rest
+tokenize' (LexerState Niets col line ('\'' : rest) layoutstate) = 
+                    let (rest', result) = P.runParserMetConsumed charP rest
                     in do
-                        r <- result
-                        toekomst <- tokenize' (LexerState Niets rest' layouts)
-                        pure $ TChar r : toekomst
+                        (r, consumed) <- result
+                        let (col', line') = calcPos col line $ consumed
+                        toekomst <- tokenize' (LexerState Niets col' line' rest' layoutstate)
+                        pure $ Token (TChar r) : toekomst
+
+
+-- strings parsen
+tokenize' (LexerState Niets col line ('"' : rest) layoutstate) = 
+                    let (rest', result) = P.runParserMetConsumed stringP rest
+                    in do
+                        (lit, consumed) <- result
+                        --(lit, rest') <- stringParse rest
+                        let (col', line') = calcPos col line $ consumed
+                        toekomst <- tokenize' (LexerState Niets col' line' rest' layoutstate)
+                        pure $ Token (TString lit) : toekomst
 
 
 
 -- Integers parsen  -- TODO floats
-tokenize' (LexerState Niets spul layouts) | isDigit (head spul) = 
-                    let (rest, result) = P.runParser intP spul
-                    in case result of
-                        Left e -> error $ "parsing int, dit zou niet moeten kunnen gebeuren, error: " ++ show e ++ " in string " ++ spul
-                        Right r -> (Tinteger r :) <$> tokenize' (LexerState Niets rest layouts)
+tokenize' (LexerState Niets col line spul layoutstate) | isDigit (head spul) = 
+                    let (rest, result) = P.runParserMetConsumed intP spul
+                    in do
+                        (r, consumed) <- result
+                        let (col', line') = calcPos col line $ consumed
+                        --case result of
+                        --Left e -> error $ "parsing int, dit zou niet moeten kunnen gebeuren, error: " ++ show e ++ " in string " ++ spul
+                        toekomst <- tokenize' (LexerState Niets col' line' rest layoutstate)
+                        --Right r -> (Tinteger r :) <$> tokenize' (LexerState Niets rest layouts)
+                        pure $ Token (Tinteger r) : toekomst
 
 
--- Newline -- TODO layout fixen
-tokenize' (LexerState Niets spul layouts) | isnewline = (Tspecialsymb ';' :) <$>  tokenize' (LexerState Niets rest layouts)
-    where (isnewline, rest) = isNewLine spul
-
-
--- Whitespace
-tokenize' (LexerState Niets spul layouts) | isWhiteCharNoNewLine (head spul) = tokenize' $ LexerState Niets (dropWhile isWhiteCharNoNewLine spul) layouts
-
--- Comment single line -- TODO hier layout newline voor gebruiken? Nee denk dat dit prima is, want we snijden alles af tot de nieuwline (zie nextLine)
-tokenize' (LexerState Niets spul@(s1:s2:rest) layouts) | s1 == '-' && s2 == '-' && restgeencomment = tokenize' $ LexerState Niets (nextLine rest') layouts
-    where
-        rest' = dropWhile (=='-') rest
-        restgeencomment = null rest' || (not . isSymbol $ head rest')
 
 -- Symbols (and special symbols)
-tokenize' (LexerState Niets (s:rest) layouts)   | isSpecial s = (Tspecialsymb s :) <$> tokenize' (LexerState Niets rest layouts)
-tokenize' (LexerState Niets spul@(s:_) layouts) | isSymbol s = let (symbols, rest) = span isSymbol spul in (Tsymbols symbols :) <$> tokenize' (LexerState Niets rest layouts)
+tokenize' (LexerState Niets col line (s:rest) layouts)   | isSpecial s = (Token (Tspecialsymb s) :) <$> tokenize' (LexerState Niets (col+1) line rest layouts)
+tokenize' (LexerState Niets col line spul@(s:_) layouts) | isSymbol s = 
+                let (symbols, rest) = span isSymbol spul 
+                    col' = col + (length symbols)
+                in (Token (Tsymbols symbols) :) <$> tokenize' (LexerState Niets col' line rest layouts)
 
 -- varid (en reservedid)
-tokenize' (LexerState Niets spul@(s:rest) layouts) | isLower s || s=='_' = 
-    let (varid, rest) = span (\c -> isAlphaNum c || (c=='_') || (c=='\'')) spul 
-        toekomst = tokenize' $ LexerState Niets rest layouts
+tokenize' (LexerState Niets col line spul@(s:rest) layouts) | isLower s || s=='_' = 
+    let (varid, rest') = span (\c -> isAlphaNum c || (c=='_') || (c=='\'')) spul 
+        col' = col + (length varid)
+        toekomst = tokenize' $ LexerState Niets col' line rest' layouts
     in if isReserved varid
-        then (Treserved varid :) <$> toekomst -- TODO willen we dit niet gewoon als Tvarid doorgooien?
-        else (Tvarid varid :) <$> toekomst
+        then (Token (Treserved varid) :) <$> toekomst -- TODO willen we dit niet gewoon als Tvarid doorgooien?
+        else (Token (Tvarid varid) :) <$> toekomst
 
 -- consid
-tokenize' (LexerState Niets spul@(s:rest) layouts) | isUpper s = let (consid, rest) = span (\c -> isAlphaNum c || (c=='_') || (c=='\'')) spul in (Tconsid consid :) <$> tokenize' (LexerState Niets rest layouts)
+tokenize' (LexerState Niets col line spul@(s:rest) layouts) | isUpper s = 
+            let (consid, rest) = span (\c -> isAlphaNum c || (c=='_') || (c=='\'')) spul 
+                col' = col + (length consid)
+            in (Token (Tconsid consid) :) <$> tokenize' (LexerState Niets col' line rest layouts)
 
 
 
 
 -- Snappen we niet
-tokenize' (LexerState Niets spul layouts) = Left $ unexpectedError "iets wat we snappen" spul -- TODO hier betere error maken
+tokenize' (LexerState Niets col line spul layouts) = Left $ unexpectedError "iets wat we snappen" spul -- TODO hier betere error maken
 
 
 
@@ -138,6 +193,18 @@ tokenize' (LexerState Niets spul layouts) = Left $ unexpectedError "iets wat we 
 
 
 
+
+calcPos :: Int -> Int -> String -> (Int, Int)
+calcPos col line [] = (col, line)
+calcPos col line ('\r':'\n':ss) = calcPos 1 (line + 1) ss
+calcPos col line ('\r':ss) = calcPos 1 (line + 1) ss
+calcPos col line ('\n':ss) = calcPos 1 (line + 1) ss
+calcPos col line ('\f':ss) = calcPos 1 (line + 1) ss
+calcPos col line ('\t':ss) = 
+            let r = col `rem` 8
+                extra = 8 - r
+            in calcPos (col+extra+1) line ss
+calcPos col line (c:ss) = calcPos (col+1) line ss
 
 
 
@@ -218,13 +285,13 @@ charP = (   (P.satisfy isGraphicNietQuotesBackslash "character")
         <|> escapeP
         ) <* P.token '\''
 
--- input -> Either error (geparste string literal, rest of tokens)
-stringParse :: [Char] -> Either Error (String, [Char])
-stringParse spul = 
-        let (rest, result) = P.runParser stringP spul
-        in case result of 
-            Left e -> Left e
-            Right r -> Right (r, rest)
+-- -- input -> Either error (geparste string literal, rest of tokens)
+-- stringParse :: [Char] -> Either Error (String, [Char])
+-- stringParse spul = 
+--         let (rest, result) = P.runParser stringP spul
+--         in case result of 
+--             Left e -> Left e
+--             Right r -> Right (r, rest)
 
 -- De openende " zit al in de lexer, de afsluitende zit hierin
 stringP :: P.Parser Char Error [Char]

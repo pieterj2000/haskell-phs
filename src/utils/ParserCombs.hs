@@ -23,7 +23,9 @@ module ParserCombs (
     manySep,
     someSep2,
     tokens,
-    runParser
+    runParser,
+    runParserMetConsumed,
+    eof
 ) where
 
 import Control.Applicative (Alternative (..))
@@ -47,11 +49,20 @@ runParser p spul = unParser p getchar (const Nothing) spul
             getchar [] = Nothing
             getchar (x:xs) = Just (xs, x)
 
+runParserMetConsumed :: Parser i e a -> [i] -> ([i], Either e (a, [i]))
+runParserMetConsumed p spul = 
+        let getchar ([], consumed) = Nothing
+            getchar (x:xs, consumed) = Just ((xs, x : consumed), x)
+            ((rest, consum), r) = unParser p getchar (const Nothing) (spul, [])
+        in case r of 
+            Left e -> (rest, Left e)
+            Right r' -> (rest, Right (r', reverse consum))
+
 -- TODO error gooien als niet alles geparsed is!
 parseResult :: Show i => ParseError e => Parser i e a -> [i] -> Either e a
 parseResult p input = 
     let (rest, r) = runParser p input 
-    in if not $ null rest
+    in if False -- not $ null rest -- TODO 
         then Left $ unconsumedError rest
         else case r of
             Left e -> Left e
@@ -109,6 +120,14 @@ getIf p expects = Parser $ \getchar getLayout input ->
             Just (rest, c) -> case p c of
                 Just a -> (rest, Right a)
                 Nothing -> (input, Left $ unexpectedError expects (show c))
+
+-- TODO werkt dit goed met layout?
+-- | fails if not eof
+eof :: (ParseError e, Show i) => Parser i e ()
+eof = Parser $ \getchar getLayout input ->
+        case getchar input of 
+            Nothing -> (input, Right ())
+            Just (rest, c) -> (input, Left $ unexpectedError "end of file" (show c))
 
 
 -- | expects predicate function on tokens and String describing what it expects, for error messages
