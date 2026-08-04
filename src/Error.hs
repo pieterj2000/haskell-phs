@@ -18,6 +18,7 @@ class ParseError e where
     -- | unconsumed input -> e
     unconsumedError :: Show i => [i] -> e
     fixityError :: e
+    layoutError :: e
 
 
 
@@ -31,6 +32,7 @@ instance ParseError Error where
   unconsumedError rest = Error $ "error, not consumed all input. Remaining: '" ++ show rest ++ "'"
   fixityError :: Error
   fixityError = Error "fixity error"  -- TODO goed maken
+  layoutError = Error "layout error"  -- TODO goed maken
 
 
 -- addFileLocation :: String -> Error -> Error

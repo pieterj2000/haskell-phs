@@ -17,14 +17,15 @@ import Data.Char (isAlphaNum, isUpper, isLower, isDigit, digitToInt, ord, chr, i
 import Control.Applicative (many, Alternative ((<|>), some), optional)
 import Data.Functor (($>))
 import Utils
-import Error (Error, ParseError (unexpectedError))
+import Error (Error, ParseError (..))
 import qualified ParserCombs as P
 import Data.Maybe (mapMaybe)
+import Debug.Trace (trace, traceShowId, traceShow)
 
 
 
 data LexerStateFase = InComment Int String | Niets -- | InString String | InStringGap
-data LayoutFase = InsertNiets | InsertContext | InsertIndent
+data LayoutFase = InsertNiets | InsertContext | InsertIndent -- Context is  {n}, indent is <n>
     deriving Eq
 -- | LexerState fase line col input layoutfase layoutcontexts
 data LexerState i = LexerState LexerStateFase Int Int [i] LayoutFase
@@ -42,14 +43,46 @@ data Token i
     | TString String
     deriving (Show, Eq)
 
-data LToken = Token (Token Char) | Indent Int | Context Int
+data LToken = Token (Token Char) | Indent Int | Context Int -- Context is  {n}, indent is <n>
+    deriving (Eq, Show)
 
 
 
-doeLayout :: [LToken] -> [Token Char]
-doeLayout = mapMaybe (\t -> case t of
-                    Token t -> Just t
-                    _ -> Nothing) 
+insertInitialBracket :: [LToken] -> Bool
+insertInitialBracket spul =
+    let leeg = null spul
+        isbracket = head spul == Token (Tspecialsymb '{') 
+        ismodule = head spul == Token (Treserved "module")
+    in leeg || leeg || (not isbracket && not ismodule)
+
+-- doeLayout :: [LToken] -> [Token Char]
+-- doeLayout spul = traceShow spul $ mapMaybe (\t -> case t of
+--                     Token t -> Just t
+--                     _ -> Nothing) spul  
+
+
+doeLayout :: [LToken] -> Either Error [Token Char]
+doeLayout spul = go spul []
+    where
+        a <: b = (a :) <$> b
+        infixr <:
+        go :: [LToken] -> [Int] -> Either Error [Token Char]
+        go (Indent n : ts) (m : ms)     | m == n                = (Tspecialsymb ';') <: go ts (m : ms)
+        go (Indent n : ts) (m : ms)     | n < m                 = (Tspecialsymb '}') <: go (Indent n : ts) ms
+        go (Indent n : ts) ms                                   = go ts ms
+        go (Context n : ts) (m : ms)    | n > m                 = (Tspecialsymb '{') <: go ts (n : m : ms)
+        go (Context n : ts) []          | n > 0                 = (Tspecialsymb '{') <: go ts [n]
+        go (Context n : ts) ms                                  = (Tspecialsymb '{') <: (Tspecialsymb '}') <: go (Indent n : ts) ms
+        go (Token (Tspecialsymb '}') : ts) (0 : ms)             = (Tspecialsymb '}') <: go ts ms
+        go (Token (Tspecialsymb '}') : ts) ms                   = Left $ layoutError
+        go (Token (Tspecialsymb '{') : ts) ms                   = (Tspecialsymb '{') <: go ts (0 : ms)
+        go (t : ts) (m : ms)            | m /= 0 && parseerror  = (Tspecialsymb '}') <: go (t : ts) ms
+                    where parseerror = False -- TODO PARSE-ERROR LAYOUT
+        go (Token t : ts) ms                                   = t <: go ts ms
+        go [] []                                                = Right []
+        go [] (m : ms)                  | m /= 0                = (Tspecialsymb '}') <: go [] ms
+        go [] (m : ms)                                          = Left $ layoutError
+
 
 
 tokenize :: [Char] -> [Token Char]
@@ -57,7 +90,13 @@ tokenize :: [Char] -> [Token Char]
 
 
 tokenize'' :: String -> Either Error [Token Char]
-tokenize'' spul = doeLayout <$> tokenize' (LexerState Niets 1 1 spul InsertNiets)
+tokenize'' spul = do 
+        tokens <- tokenize' (LexerState Niets 1 1 spul InsertNiets)
+        if insertInitialBracket tokens
+            then do
+                tokens' <- tokenize' (LexerState Niets 1 1 spul InsertContext)
+                doeLayout tokens'
+            else doeLayout tokens 
 
 
 tokenize' :: LexerState Char -> Either Error [LToken]
@@ -118,6 +157,13 @@ tokenize' (LexerState Niets col line spul@(s1:s2:rest) layoutstate) | s1 == '-' 
 
 
 -- TODODOODOD NU HIER DOEN: HIERZO INDENTS EN LAYOUTS INVOEGEN AFHANKELIJK VAN LAYOUTSTATE EN DAN PATTERN MATCHEN OP ALLE 'ECHTE' LEXEMES HIERONDER, ALLE LAYOUT EN 'NEP' LEXEMES HIERBOVEN
+--tokenize' (LexerState Niets col line spul InsertNiets) = 
+tokenize' (LexerState Niets col line spul InsertIndent) = (Indent col :) <$> tokenize' (LexerState Niets col line spul InsertNiets)
+tokenize' (LexerState Niets col line spul InsertContext) = do
+                tokens <- tokenize' (LexerState Niets col line spul InsertNiets)
+                if null tokens || head tokens /= Token (Tspecialsymb '{') 
+                    then return $ Context col : tokens
+                    else return tokens
 
 
 -- chars parsen
@@ -164,10 +210,12 @@ tokenize' (LexerState Niets col line spul@(s:_) layouts) | isSymbol s =
                 in (Token (Tsymbols symbols) :) <$> tokenize' (LexerState Niets col' line rest layouts)
 
 -- varid (en reservedid)
-tokenize' (LexerState Niets col line spul@(s:rest) layouts) | isLower s || s=='_' = 
+tokenize' (LexerState Niets col line spul@(s:rest) layoutstate) | isLower s || s=='_' = 
     let (varid, rest') = span (\c -> isAlphaNum c || (c=='_') || (c=='\'')) spul 
         col' = col + (length varid)
-        toekomst = tokenize' $ LexerState Niets col' line rest' layouts
+        layoutstate' = if varid `elem` ["let", "where", "do", "of"]
+                then InsertContext else layoutstate
+        toekomst = tokenize' $ LexerState Niets col' line rest' layoutstate'
     in if isReserved varid
         then (Token (Treserved varid) :) <$> toekomst -- TODO willen we dit niet gewoon als Tvarid doorgooien?
         else (Token (Tvarid varid) :) <$> toekomst

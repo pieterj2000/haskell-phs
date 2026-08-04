@@ -163,6 +163,7 @@ tokens = traverse token
 --         []          -> Left $ ParseError (ParseUnexpectedEOF "any symbol") rp
 --         (c,pos):xs    -> Right ((c,pos), (pos, xs))
 
+-- | opening -> closing -> between
 between :: Parser i e a -> Parser i e b -> Parser i e c -> Parser i e c
 between l r p = l *> p <* r
 

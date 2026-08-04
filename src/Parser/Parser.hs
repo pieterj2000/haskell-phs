@@ -36,8 +36,9 @@ type P = P.Parser (Token Char) Error
 -- TODO filename in error gooien
 parseModuleBody :: String -> String -> Either Error [HDecl]
 --parseModuleBody filename = P.parseResult topdecls <=< tokenize''
-parseModuleBody filename = P.parseResult (topdecls <* P.eof) <=< tokenize''
+parseModuleBody filename = P.parseResult (topdecls' <* P.eof) <=< tokenize''
 
+topdecls' = P.between (P.token (Tspecialsymb '{')) (P.token (Tspecialsymb '}')) topdecls
 
 topdecls :: P [HDecl] 
 topdecls = P.someSep' topdecl (P.token (Tspecialsymb ';'))
